@@ -90,8 +90,10 @@
     }
     .swap-button:hover { background: var(--accent-soft); transform: rotate(180deg); }
     .rate-note { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
-    .currency-switcher { display: flex; gap: 8px; overflow-x: auto; margin: 0 -2px 17px; padding: 2px 2px 7px; scrollbar-width: none; }
+    .currency-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 17px; }
+    .currency-switcher { display: flex; flex: 1; min-width: 0; gap: 12px; overflow-x: auto; margin: 0; padding: 2px 5px 7px; scrollbar-width: none; }
     .currency-switcher::-webkit-scrollbar { display: none; }
+    .currency-actions { display: flex; flex: none; align-items: center; gap: 6px; }
     .currency-chip {
       flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 39px;
       padding: 0 14px; border: 1px solid var(--line); border-radius: 999px;
@@ -139,20 +141,14 @@
     }
     .amount-input:focus { box-shadow: 0 1px 0 var(--accent); }
     @keyframes row-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-    .table-controls {
-      display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px;
-      padding: 15px 19px; border-top: 1px solid var(--line);
-    }
-    .range-label { color: var(--muted); font-size: 12px; }
-    .range-actions { display: flex; align-items: center; justify-content: center; gap: 8px; }
     .range-button {
-      width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 11px;
+      width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 10px;
       background: var(--surface); cursor: pointer; font-size: 18px; transition: background .18s ease, transform .16s ease;
     }
     .range-button:hover { background: var(--accent-soft); }
     .range-button:active { transform: scale(.92); }
-    .range-button:disabled { opacity: .45; cursor: default; }
-    .collapse-button { justify-self: end; }
+    .range-button:disabled { opacity: .4; cursor: default; }
+    .range-button:disabled:hover { background: var(--surface); }
     .rate-card {
       display: flex; align-items: center; justify-content: space-between; gap: 14px;
       margin-top: 14px; padding: 16px 19px; border: 1px solid var(--line);
@@ -244,19 +240,18 @@
       <p id="rate-note" class="rate-note"></p>
     </section>
 
-    <nav id="currency-switcher" class="currency-switcher" aria-label="Активная валюта"></nav>
+    <div class="currency-toolbar">
+      <nav id="currency-switcher" class="currency-switcher" aria-label="Активная валюта"></nav>
+      <div class="currency-actions">
+        <button id="range-down" class="range-button" type="button" aria-label="Уменьшить масштаб">←</button>
+        <button id="range-up" class="range-button" type="button" aria-label="Увеличить масштаб">→</button>
+        <button id="collapse-all" class="range-button" type="button" aria-label="Свернуть все" title="Свернуть все" disabled>⌃</button>
+      </div>
+    </div>
 
     <section class="conversion-card" aria-label="Таблица конвертации">
       <div class="table-head"><span id="source-heading">AED</span><span id="target-heading">RUB</span></div>
       <div id="conversion-list" class="conversion-list"></div>
-      <div class="table-controls">
-        <span id="range-label" class="range-label">Диапазон сумм</span>
-        <div class="range-actions">
-          <button id="range-down" class="range-button" type="button" aria-label="Уменьшить масштаб">←</button>
-          <button id="range-up" class="range-button" type="button" aria-label="Увеличить масштаб">→</button>
-        </div>
-        <button id="collapse-all" class="range-button collapse-button" type="button" aria-label="Свернуть все" title="Свернуть все" hidden>⌃</button>
-      </div>
     </section>
 
     <aside class="rate-card">
@@ -366,7 +361,7 @@
       const els = {
         pairTitle: $('pair-title'), rateNote: $('rate-note'), switcher: $('currency-switcher'),
         sourceHeading: $('source-heading'), targetHeading: $('target-heading'), list: $('conversion-list'),
-        rangeLabel: $('range-label'), rateValue: $('rate-value'), overlay: $('settings-overlay'),
+        rateValue: $('rate-value'), overlay: $('settings-overlay'),
         baseSelect: $('base-currency'), currencies: $('currency-settings'), addForm: $('add-currency-form'),
         newQuoteLabel: $('new-quote-label'), newQuotePrefix: $('new-quote-prefix'), newQuoteSuffix: $('new-quote-suffix'),
         themeButton: $('theme-button'), toast: $('toast')
@@ -629,11 +624,9 @@
         els.targetHeading.textContent = target;
         els.rateNote.textContent = quoteText(active);
         els.rateValue.textContent = quoteText(active);
-        const levels = ['Единицы', 'Десятки', 'Сотни'];
-        els.rangeLabel.textContent = `Масштаб · ${levels[state.rangeLevel]}`;
         $('range-down').disabled = state.rangeLevel === 0;
         $('range-up').disabled = state.rangeLevel === 2;
-        $('collapse-all').hidden = state.expandedPath.length === 0;
+        $('collapse-all').disabled = state.expandedPath.length === 0;
 
         els.switcher.innerHTML = state.currencies
           .filter(item => item.code !== state.base)
