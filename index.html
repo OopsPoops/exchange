@@ -1,415 +1,927 @@
 <!doctype html>
 <html lang="ru" data-theme="light">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Конвертер валют в стиле Elk: конвертация на лету, офлайн-режим, 150+ валют">
-<title>Конвертер валют</title>
-<script>
-  /* тема до первой отрисовки, чтобы не было мигания */
-  try{
-    const t=JSON.parse(localStorage.getItem('ew.theme'))||
-      (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
-    document.documentElement.dataset.theme=t;
-  }catch(e){}
-</script>
-<style>
-:root{
-  --bg:#f2f4f8; --card:#ffffff; --text:#0f1420; --muted:#7a8290; --border:#e3e7ee;
-  --accent:#2f6fed; --accent-soft:#e8f0fe; --danger:#e5484d;
-  --shadow:0 1px 3px rgba(15,20,32,.08),0 8px 24px rgba(15,20,32,.06);
-}
-html[data-theme="dark"]{
-  --bg:#0f1420; --card:#171e2c; --text:#eef1f7; --muted:#8b93a5; --border:#232c3e;
-  --accent:#6ea8fe; --accent-soft:#1d2a45; --danger:#ff6369;
-  --shadow:0 1px 3px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
-}
-*{box-sizing:border-box}
-html,body{margin:0;padding:0}
-body{
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-  background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased;
-}
-.app{max-width:520px;margin:0 auto;padding:16px 16px 16px;}
-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 4px 16px}
-h1{font-size:22px;margin:0;letter-spacing:-.3px}
-#updated{font-size:12px;color:var(--muted);margin-top:3px}
-#updated.err{color:var(--danger)}
-.hdr-actions{display:flex;gap:8px}
-.icon-btn{width:38px;height:38px;border-radius:12px;border:1px solid var(--border);background:var(--card);
-  color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-  box-shadow:var(--shadow);transition:transform .1s}
-.icon-btn:active{transform:scale(.94)}
-.icon-btn.spin{animation:spin .8s linear infinite;pointer-events:none}
-@keyframes spin{to{transform:rotate(360deg)}}
-#rows{display:flex;flex-direction:column;gap:10px}
-.row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);
-  border-radius:16px;padding:10px 12px;box-shadow:var(--shadow)}
-.row.dragging{opacity:.35}
-.handle{cursor:grab;color:var(--muted);user-select:none;font-size:15px;padding:4px 2px}
-.cur{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
-.flag{font-size:26px;line-height:1}
-.meta{min-width:0}
-.code{font-weight:700;font-size:15px}
-.name{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:118px}
-.amt{flex:1.2;min-width:0;border:none;outline:none;background:transparent;color:var(--text);font-size:20px;
-  font-weight:600;text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:6px 6px;border-radius:8px}
-.amt:focus{background:var(--accent-soft)}
-.del{border:none;background:transparent;color:var(--muted);font-size:17px;width:28px;height:28px;
-  border-radius:8px;cursor:pointer;flex:none}
-.del:hover{color:var(--danger);background:var(--accent-soft)}
-.del[disabled]{opacity:.25;pointer-events:none}
-.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));width:56px;height:56px;
-  border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:28px;cursor:pointer;
-  box-shadow:0 6px 20px rgba(47,111,237,.45);display:flex;align-items:center;justify-content:center;transition:transform .1s}
-.fab:active{transform:scale(.92)}
-.overlay{position:fixed;inset:0;background:rgba(10,14,22,.5);backdrop-filter:blur(2px);
-  display:flex;align-items:flex-end;justify-content:center;z-index:50}
-.hidden{display:none}
-.sheet{background:var(--card);width:100%;max-width:520px;border-radius:20px 20px 0 0;max-height:80vh;
-  display:flex;flex-direction:column;padding:14px 14px calc(14px + env(safe-area-inset-bottom))}
-@media(min-width:600px){.overlay{align-items:center}.sheet{border-radius:20px}}
-.sheet-head{display:flex;gap:8px;margin-bottom:10px}
-#search{flex:1;font-size:16px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);
-  background:var(--bg);color:var(--text);outline:none}
-#search:focus{border-color:var(--accent)}
-#curList{overflow-y:auto}
-.cur-item{display:flex;align-items:center;gap:12px;padding:11px 8px;border-radius:12px;cursor:pointer;
-  border:none;background:transparent;color:var(--text);text-align:left;font-family:inherit;width:100%;font-size:15px}
-.cur-item:hover{background:var(--accent-soft)}
-.cur-item .flag{font-size:22px}
-.cur-item .code{font-weight:700;width:48px;flex:none}
-.cur-item .name{flex:1;font-size:13px;color:var(--muted);max-width:none;white-space:normal}
-.cur-item .tick{color:var(--accent);font-weight:700}
-.empty{padding:40px 10px;text-align:center;color:var(--muted);font-size:14px}
-footer{margin-top:18px;text-align:center;font-size:11px;color:var(--muted)}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta id="theme-color" name="theme-color" content="#f7f6f2">
+  <meta name="description" content="exchange — простой конвертер валют с курсами, которые вы задаёте сами.">
+  <title>exchange — конвертер валют</title>
+  <script>
+    try {
+      const saved = JSON.parse(localStorage.getItem('exchange.settings.v2') || localStorage.getItem('exchange.settings.v1'));
+      const theme = saved && (saved.theme === 'dark' || saved.theme === 'light')
+        ? saved.theme
+        : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.dataset.theme = theme;
+    } catch (_) {}
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f7f6f2;
+      --surface: #fffefa;
+      --surface-soft: #f2f1ec;
+      --ink: #252633;
+      --muted: #81818d;
+      --line: #e9e7e0;
+      --accent: #6269c9;
+      --accent-strong: #484fae;
+      --accent-soft: #eeefff;
+      --danger: #b94d48;
+      --shadow: 0 12px 40px rgba(39, 38, 63, .055);
+      --radius: 22px;
+    }
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --page: #181923;
+      --surface: #222431;
+      --surface-soft: #2b2d3b;
+      --ink: #f0eff7;
+      --muted: #a3a2b3;
+      --line: #343544;
+      --accent: #aeb2ff;
+      --accent-strong: #c4c6ff;
+      --accent-soft: #303249;
+      --danger: #f08a82;
+      --shadow: 0 14px 40px rgba(0, 0, 0, .18);
+    }
+    * { box-sizing: border-box; }
+    html { min-width: 320px; background: var(--page); }
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      min-height: 100svh;
+      color: var(--ink);
+      background: var(--page);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      font-variant-numeric: tabular-nums;
+      transition: background .25s ease, color .25s ease;
+    }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+      outline-offset: 2px;
+    }
+    .app { width: min(100% - 40px, 720px); margin: 0 auto; padding: 28px 0 48px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 30px; }
+    .brand { margin: 0; font-size: 22px; line-height: 1; letter-spacing: -.8px; font-weight: 720; }
+    .top-actions { display: flex; gap: 8px; }
+    .icon-button, .quiet-button {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      border: 1px solid var(--line); background: var(--surface); cursor: pointer;
+      transition: transform .16s ease, background .2s ease, border-color .2s ease;
+    }
+    .icon-button { width: 42px; height: 42px; border-radius: 15px; font-size: 18px; }
+    .quiet-button { min-height: 42px; padding: 0 15px; border-radius: 14px; font-size: 13px; font-weight: 620; }
+    .icon-button:hover, .quiet-button:hover { border-color: var(--accent); }
+    .icon-button:active, .quiet-button:active { transform: scale(.96); }
+    .intro { margin: 0 0 23px; }
+    .eyebrow { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+    .pair-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 9px; }
+    .pair-title { margin: 0; font-size: clamp(24px, 5vw, 32px); line-height: 1.15; letter-spacing: -1.1px; font-weight: 640; }
+    .pair-title span { color: var(--muted); font-weight: 420; }
+    .swap-button {
+      flex: none; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 50%;
+      background: var(--surface); color: var(--accent-strong); cursor: pointer; font-size: 18px;
+      transition: transform .25s ease, background .2s ease;
+    }
+    .swap-button:hover { background: var(--accent-soft); transform: rotate(180deg); }
+    .rate-note { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+    .currency-switcher { display: flex; gap: 8px; overflow-x: auto; margin: 0 -2px 17px; padding: 2px 2px 7px; scrollbar-width: none; }
+    .currency-switcher::-webkit-scrollbar { display: none; }
+    .currency-chip {
+      flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 39px;
+      padding: 0 14px; border: 1px solid var(--line); border-radius: 999px;
+      background: var(--surface); color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 650;
+      transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease;
+    }
+    .currency-chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: #fff; }
+    html[data-theme="dark"] .currency-chip[aria-pressed="true"] { color: #172019; }
+    .currency-chip:active { transform: scale(.96); }
+    .conversion-card {
+      overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius);
+      background: var(--surface); box-shadow: var(--shadow);
+    }
+    .table-head {
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px;
+      padding: 16px 21px 13px; color: var(--muted); font-size: 11px; font-weight: 700;
+      letter-spacing: .07em; text-transform: uppercase;
+    }
+    .table-head span:last-child { text-align: right; }
+    .conversion-list { overscroll-behavior: contain; touch-action: pan-y; }
+    .conversion-row {
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px;
+      align-items: center; width: 100%; min-height: 70px; padding: 12px 21px;
+      border: 0; border-top: 1px solid var(--line); background: transparent; text-align: left;
+      cursor: pointer; transition: background .2s ease, min-height .2s ease;
+      animation: row-in .26s ease both;
+    }
+    .conversion-row:hover { background: color-mix(in srgb, var(--accent-soft) 48%, transparent); }
+    .conversion-row.is-selected { min-height: 78px; background: var(--accent-soft); }
+    .conversion-row.is-expanded { background: var(--accent-soft); }
+    .conversion-row.nested-row { min-height: 58px; padding-left: calc(21px + var(--depth, 1) * 12px); background: var(--surface-soft); }
+    .conversion-row.nested-row:hover { background: var(--accent-soft); }
+    .row-source { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .expand-chevron { flex: none; width: 15px; color: var(--muted); font-size: 15px; transition: transform .18s ease; }
+    .is-expanded .expand-chevron { transform: rotate(180deg); color: var(--accent-strong); }
+    .source-value, .target-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .source-value { font-size: clamp(18px, 4vw, 21px); font-weight: 590; letter-spacing: -.45px; }
+    .target-value { text-align: right; font-size: clamp(18px, 4vw, 21px); font-weight: 560; letter-spacing: -.4px; }
+    .is-selected .source-value, .is-selected .target-value { color: var(--accent-strong); font-weight: 700; }
+    .amount-input {
+      display: block; width: 100%; min-width: 0; padding: 0; border: 0; border-radius: 5px;
+      outline: none; background: transparent; color: var(--accent-strong); font-size: inherit;
+      font-weight: 720; letter-spacing: inherit; font-variant-numeric: tabular-nums;
+    }
+    .amount-input:focus { box-shadow: 0 1px 0 var(--accent); }
+    @keyframes row-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    .table-controls {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 15px 19px; border-top: 1px solid var(--line);
+    }
+    .range-label { color: var(--muted); font-size: 12px; }
+    .range-actions { display: flex; align-items: center; gap: 8px; }
+    .range-button {
+      width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 11px;
+      background: var(--surface); cursor: pointer; font-size: 18px; transition: background .18s ease, transform .16s ease;
+    }
+    .range-button:hover { background: var(--accent-soft); }
+    .range-button:active { transform: scale(.92); }
+    .rate-card {
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+      margin-top: 14px; padding: 16px 19px; border: 1px solid var(--line);
+      border-radius: 18px; background: var(--surface);
+    }
+    .rate-label { color: var(--muted); font-size: 12px; }
+    .rate-value { margin-top: 4px; font-size: 14px; font-weight: 650; }
+    .rate-caption { margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .settings-overlay {
+      position: fixed; z-index: 20; inset: 0; overflow-y: auto; padding: 24px 16px;
+      background: color-mix(in srgb, var(--page) 94%, transparent); backdrop-filter: blur(14px);
+      animation: fade-in .2s ease;
+    }
+    .settings-overlay[hidden] { display: none; }
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+    .settings-panel { width: min(100%, 620px); margin: 0 auto; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+    .settings-header { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 22px; }
+    .settings-title { margin: 0; font-size: 27px; letter-spacing: -.8px; }
+    .settings-section { margin: 22px 0; }
+    .section-heading { margin: 0 0 10px; font-size: 12px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+    .settings-card { padding: 17px; border: 1px solid var(--line); border-radius: 19px; background: var(--surface); }
+    .base-select {
+      width: 100%; min-height: 48px; padding: 0 13px; border: 1px solid var(--line); border-radius: 13px;
+      background: var(--surface); color: var(--ink);
+    }
+    .settings-help { margin: 9px 1px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .managed-currency { padding: 15px 0; border-bottom: 1px solid var(--line); }
+    .managed-currency:first-child { padding-top: 0; }
+    .managed-currency:last-child { padding-bottom: 0; border-bottom: 0; }
+    .currency-edit-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .currency-identity { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .currency-identity strong { font-size: 14px; }
+    .currency-identity span { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .base-badge { padding: 5px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-strong); font-size: 10px !important; font-weight: 700; }
+    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .field { display: grid; gap: 6px; min-width: 0; color: var(--muted); font-size: 11px; }
+    .field input, .field select {
+      width: 100%; min-width: 0; height: 42px; padding: 0 10px;
+      border: 1px solid var(--line); border-radius: 11px; background: var(--page); color: var(--ink); font-size: 14px;
+    }
+    .quote-field { margin-top: 10px; }
+    .quote-input-wrap { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+    .quote-input-wrap input { flex: 1; }
+    .remove-button { border: 0; background: transparent; color: var(--danger); cursor: pointer; font-size: 12px; font-weight: 650; }
+    .add-card { display: grid; gap: 10px; }
+    .add-card .quiet-button { justify-self: start; margin-top: 3px; }
+    .footer-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 25px; }
+    .reset-button { border: 0; padding: 9px 0; background: transparent; color: var(--danger); cursor: pointer; font-size: 12px; }
+    .done-button { min-width: 100px; border-color: var(--accent); background: var(--accent); color: #fff; }
+    html[data-theme="dark"] .done-button { color: #172019; }
+    .toast {
+      position: fixed; z-index: 40; left: 50%; bottom: max(24px, env(safe-area-inset-bottom));
+      max-width: calc(100vw - 32px); transform: translate(-50%, 12px); opacity: 0;
+      padding: 11px 15px; border-radius: 13px; background: var(--ink); color: var(--page);
+      font-size: 13px; pointer-events: none; transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.visible { transform: translate(-50%, 0); opacity: 1; }
+    @media (max-width: 540px) {
+      .app { width: min(100% - 30px, 440px); padding-top: max(19px, env(safe-area-inset-top)); }
+      .topbar { margin-bottom: 27px; }
+      .conversion-row { min-height: 66px; padding-right: 17px; padding-left: 17px; }
+      .conversion-row.is-selected { min-height: 74px; }
+      .table-head { padding-right: 17px; padding-left: 17px; }
+      .settings-overlay { padding: max(18px, env(safe-area-inset-top)) 15px 15px; }
+      .settings-card { padding: 14px; }
+      .rate-card { padding: 14px 15px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div>
-      <h1>Конвертер валют</h1>
-      <div id="updated">Загрузка…</div>
+  <main class="app">
+    <header class="topbar">
+      <h1 class="brand">exchange</h1>
+      <div class="top-actions">
+        <button id="theme-button" class="icon-button" type="button" aria-label="Сменить тему" title="Сменить тему">☾</button>
+        <button id="settings-button" class="quiet-button" type="button"><span aria-hidden="true">⚙</span> Настройки</button>
+      </div>
+    </header>
+
+    <section class="intro" aria-labelledby="pair-title">
+      <div class="eyebrow">Мой обмен</div>
+      <div class="pair-heading">
+        <h2 id="pair-title" class="pair-title">AED <span>→</span> RUB</h2>
+        <button id="swap-button" class="swap-button" type="button" aria-label="Поменять направление" title="Поменять направление">⇄</button>
+      </div>
+      <p id="rate-note" class="rate-note"></p>
+    </section>
+
+    <nav id="currency-switcher" class="currency-switcher" aria-label="Активная валюта"></nav>
+
+    <section class="conversion-card" aria-label="Таблица конвертации">
+      <div class="table-head"><span id="source-heading">AED</span><span id="target-heading">RUB</span></div>
+      <div id="conversion-list" class="conversion-list"></div>
+      <div class="table-controls">
+        <span id="range-label" class="range-label">Диапазон сумм</span>
+        <div class="range-actions">
+          <button id="range-down" class="range-button" type="button" aria-label="Уменьшить масштаб">←</button>
+          <button id="range-up" class="range-button" type="button" aria-label="Увеличить масштаб">→</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="rate-card">
+      <div>
+        <div class="rate-label">Ваш курс</div>
+        <div id="rate-value" class="rate-value"></div>
+        <div class="rate-caption">Курс задан вручную в настройках</div>
+      </div>
+      <span aria-hidden="true" style="font-size:20px;color:var(--muted)">↗</span>
+    </aside>
+  </main>
+
+  <section id="settings-overlay" class="settings-overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+    <div class="settings-panel">
+      <header class="settings-header">
+        <h2 id="settings-title" class="settings-title">Настройки</h2>
+        <button id="close-settings" class="icon-button" type="button" aria-label="Закрыть настройки">×</button>
+      </header>
+      <section class="settings-section">
+        <h3 class="section-heading">Основная валюта</h3>
+        <div class="settings-card">
+          <select id="base-currency" class="base-select" aria-label="Основная валюта"></select>
+          <p class="settings-help">В неё вы чаще всего пересчитываете деньги. При смене основной валюты остальные курсы пересчитаются автоматически.</p>
+        </div>
+      </section>
+      <section class="settings-section">
+        <h3 class="section-heading">Мои валюты</h3>
+        <div id="currency-settings" class="settings-card"></div>
+      </section>
+      <section class="settings-section">
+        <h3 class="section-heading">Добавить валюту</h3>
+        <form id="add-currency-form" class="settings-card add-card">
+          <div class="edit-grid">
+            <label class="field">Код ISO
+              <input name="code" maxlength="3" placeholder="EUR" autocomplete="off" required>
+            </label>
+            <label class="field">Символ
+              <input name="symbol" maxlength="5" placeholder="€" autocomplete="off">
+            </label>
+            <label class="field">Название
+              <input name="name" placeholder="Евро" autocomplete="off" required>
+            </label>
+            <label class="field">Как задать курс
+              <select name="direction">
+                <option value="currency-to-base">1 валюта = N основная</option>
+                <option value="base-to-currency">1 основная = N валюта</option>
+              </select>
+            </label>
+          </div>
+          <label class="field quote-field"><span id="new-quote-label"></span>
+            <span class="quote-input-wrap"><span id="new-quote-prefix"></span><input name="rate" inputmode="decimal" placeholder="95" required><span id="new-quote-suffix"></span></span>
+          </label>
+          <button class="quiet-button" type="submit">Добавить валюту</button>
+        </form>
+      </section>
+      <div class="footer-actions">
+        <button id="reset-button" class="reset-button" type="button">Сбросить настройки</button>
+        <button id="done-button" class="quiet-button done-button" type="button">Готово</button>
+      </div>
     </div>
-    <div class="hdr-actions">
-      <button id="refreshBtn" class="icon-btn" type="button" title="Обновить курсы">⟳</button>
-      <button id="themeBtn" class="icon-btn" type="button" title="Сменить тему">🌙</button>
-    </div>
-  </header>
-  <div id="rows"></div>
-  <footer>Курсы: open.er-api.com · офлайн-режим на сохранённых данных</footer>
-</div>
+  </section>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<button id="fab" class="fab" type="button" title="Добавить валюту">+</button>
+  <script>
+    (() => {
+      'use strict';
 
-<div id="overlay" class="overlay hidden">
-  <div class="sheet">
-    <div class="sheet-head">
-      <input id="search" type="text" placeholder="Поиск валюты (код или название)…" autocomplete="off">
-      <button id="closeModal" class="icon-btn" type="button">✕</button>
-    </div>
-    <div id="curList"></div>
-  </div>
-</div>
+      const STORAGE_KEY = 'exchange.settings.v2';
+      const LEGACY_STORAGE_KEY = 'exchange.settings.v1';
+      const SCALE = 1000000000000n;
+      const DEFAULTS = {
+        version: 2,
+        base: 'RUB',
+        active: 'AED',
+        reversed: false,
+        expandedPath: [],
+        selectedAmount: null,
+        editedAmount: null,
+        rangeLevel: 0,
+        theme: 'light',
+        currencies: [
+          { code: 'RUB', name: 'Российский рубль', symbol: '₽', rate: '1', direction: 'currency-to-base', quote: '1' },
+          { code: 'AED', name: 'ОАЭ', symbol: 'د.إ', rate: '25', direction: 'base-to-currency', quote: '0.04' },
+          { code: 'USD', name: 'Доллары', symbol: '$', rate: '90', direction: 'currency-to-base', quote: '90' }
+        ]
+      };
+      const CURRENCY_NAMES = {
+        AED: 'Дирхам ОАЭ', AMD: 'Армянский драм', AUD: 'Австралийский доллар', AZN: 'Азербайджанский манат',
+        CAD: 'Канадский доллар', CHF: 'Швейцарский франк', CNY: 'Китайский юань', CZK: 'Чешская крона',
+        DKK: 'Датская крона', EUR: 'Евро', GBP: 'Фунт стерлингов', GEL: 'Грузинский лари',
+        HKD: 'Гонконгский доллар', HUF: 'Венгерский форинт', IDR: 'Индонезийская рупия', ILS: 'Израильский шекель',
+        INR: 'Индийская рупия', ISK: 'Исландская крона', JPY: 'Японская иена', KRW: 'Южнокорейская вона',
+        KZT: 'Казахстанский тенге', MXN: 'Мексиканское песо', MYR: 'Малайзийский ринггит', NOK: 'Норвежская крона',
+        NZD: 'Новозеландский доллар', PHP: 'Филиппинское песо', PLN: 'Польский злотый', RON: 'Румынский лей',
+        RUB: 'Российский рубль', SAR: 'Саудовский риял', SEK: 'Шведская крона', SGD: 'Сингапурский доллар',
+        THB: 'Тайский бат', TRY: 'Турецкая лира', TWD: 'Тайваньский доллар', UAH: 'Украинская гривна',
+        USD: 'Доллар США', UZS: 'Узбекский сум', VND: 'Вьетнамский донг', ZAR: 'Южноафриканский рэнд'
+      };
+      const SYMBOLS = {
+        AED: 'د.إ', AUD: 'A$', CAD: 'C$', CHF: 'Fr', CNY: '¥', EUR: '€', GBP: '£', INR: '₹',
+        JPY: '¥', KRW: '₩', RUB: '₽', TRY: '₺', USD: '$'
+      };
+      const $ = id => document.getElementById(id);
+      const els = {
+        pairTitle: $('pair-title'), rateNote: $('rate-note'), switcher: $('currency-switcher'),
+        sourceHeading: $('source-heading'), targetHeading: $('target-heading'), list: $('conversion-list'),
+        rangeLabel: $('range-label'), rateValue: $('rate-value'), overlay: $('settings-overlay'),
+        baseSelect: $('base-currency'), currencies: $('currency-settings'), addForm: $('add-currency-form'),
+        newQuoteLabel: $('new-quote-label'), newQuotePrefix: $('new-quote-prefix'), newQuoteSuffix: $('new-quote-suffix'),
+        themeButton: $('theme-button'), toast: $('toast')
+      };
 
-<script>
-(function(){
-'use strict';
+      function escapeHTML(value) {
+        return String(value).replace(/[&<>"']/g, char => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[char]);
+      }
 
-/* ================= Справочник валют: код → название ================= */
-const CURRENCIES={
-  USD:'Доллар США',EUR:'Евро',GBP:'Фунт стерлингов',JPY:'Японская иена',CNY:'Китайский юань',
-  RUB:'Российский рубль',CHF:'Швейцарский франк',AUD:'Австралийский доллар',CAD:'Канадский доллар',
-  NZD:'Новозеландский доллар',HKD:'Гонконгский доллар',SGD:'Сингапурский доллар',KRW:'Южнокорейская вона',
-  INR:'Индийская рупия',MXN:'Мексиканское песо',BRL:'Бразильский реал',ZAR:'Южноафриканский рэнд',
-  TRY:'Турецкая лира',SEK:'Шведская крона',NOK:'Норвежская крона',DKK:'Датская крона',PLN:'Польский злотый',
-  CZK:'Чешская крона',HUF:'Венгерский форинт',RON:'Румынский лей',BGN:'Болгарский лев',ISK:'Исландская крона',
-  UAH:'Украинская гривна',KZT:'Казахстанский тенге',BYN:'Белорусский рубль',UZS:'Узбекский сум',
-  KGS:'Киргизский сом',TJS:'Таджикский сомони',TMT:'Туркменский манат',AZN:'Азербайджанский манат',
-  AMD:'Армянский драм',GEL:'Грузинский лари',MDL:'Молдавский лей',RSD:'Сербский динар',MKD:'Македонский денар',
-  BAM:'Конвертируемая марка',ALL:'Албанский лек',HRK:'Хорватская куна',THB:'Тайский бат',VND:'Вьетнамский донг',
-  IDR:'Индонезийская рупия',MYR:'Малайзийский ринггит',PHP:'Филиппинское песо',TWD:'Новый тайваньский доллар',
-  AED:'Дирхам ОАЭ',SAR:'Саудовский риял',QAR:'Катарский риал',KWD:'Кувейтский динар',BHD:'Бахрейнский динар',
-  OMR:'Оманский риал',JOD:'Иорданский динар',ILS:'Израильский шекель',EGP:'Египетский фунт',
-  MAD:'Марокканский дирхам',TND:'Тунисский динар',DZD:'Алжирский динар',LYD:'Ливийский динар',
-  NGN:'Нигерийская найра',KES:'Кенийский шиллинг',GHS:'Ганский седи',ETB:'Эфиопский быр',
-  TZS:'Танзанийский шиллинг',UGX:'Угандийский шиллинг',XOF:'Франк КФА BCEAO',XAF:'Франк КФА BEAC',
-  XPF:'Франк КФП',ARS:'Аргентинское песо',CLP:'Чилийское песо',COP:'Колумбийское песо',PEN:'Перуанский соль',
-  BOB:'Боливиано',PYG:'Парагвайский гуарани',UYU:'Уругвайское песо',VES:'Венесуэльский боливар',
-  BSD:'Багамский доллар',BBD:'Барбадосский доллар',BMD:'Бермудский доллар',KYD:'Доллар Каймановых Островов',
-  JMD:'Ямайский доллар',TTD:'Доллар Тринидада и Тобаго',XCD:'Восточнокарибский доллар',DOP:'Доминиканское песо',
-  CRC:'Костариканский колон',GTQ:'Гватемальский кетсаль',HNL:'Гондурасская лемпира',NIO:'Никарагуанская кордоба',
-  PAB:'Панамское бальбоа',BZD:'Белизский доллар',SRD:'Суринамский доллар',FKP:'Фунт Фолклендских островов',
-  GIP:'Гибралтарский фунт',FJD:'Доллар Фиджи',PGK:'Кина Папуа — Новой Гвинеи',WST:'Самоанская тала',
-  TOP:'Тонганская паанга',VUV:'Вату Вануату',SBD:'Доллар Соломоновых Островов',BND:'Брунейский доллар',
-  MOP:'Патака Макао',MMK:'Мьянманский кьят',KHR:'Камбоджийский риель',LAK:'Лаосский кип',MNT:'Монгольский тугрик',
-  NPR:'Непальская рупия',LKR:'Шри-ланкийская рупия',PKR:'Пакистанская рупия',BDT:'Бангладешская така',
-  AFN:'Афгани',IRR:'Иранский риал',IQD:'Иракский динар',SYP:'Сирийский фунт',LBP:'Ливанский фунт',
-  YER:'Йеменский риал',SDG:'Суданский фунт',SSP:'Южносуданский фунт',SOS:'Сомалийский шиллинг',
-  DJF:'Франк Джибути',ERN:'Накфа',MUR:'Маврикийская рупия',SCR:'Сейшельская рупия',MVR:'Мальдивская руфия',
-  MGA:'Малагасийский ариари',MWK:'Малавийская квача',ZMW:'Замбийская квача',ZWL:'Зимбабвийский доллар',
-  BWP:'Ботсванская пула',NAD:'Доллар Намибии',LSL:'Лоти',SZL:'Лилангени',AOA:'Кванза',MZN:'Мозамбикский метикал',
-  RWF:'Франк Руанды',BIF:'Франк Бурунди',CDF:'Франк ДР Конго',GNF:'Гвинейский франк',SLL:'Леоне',
-  GMD:'Даласи',CVE:'Эскудо Кабо-Верде',STN:'Добра',MRU:'Угия',KMF:'Франк Комор',BTN:'Нгултрум',
-  AWG:'Флорин Арубы',ANG:'Гульден Нидерландских Антилл',CUP:'Кубинское песо',KPW:'Северокорейская вона',
-  SHP:'Фунт Святой Елены'
-};
-const FLAG_OVERRIDES={EUR:'🇪🇺',XAF:'🌍',XOF:'🌍',XPF:'🌍',XCD:'🌍',ANG:'🇨🇼'};
-const BAD_CC=new Set(['AN','BU','CS','DD','FX','YU','ZR']);
+      function cleanDecimal(value) {
+        if (typeof value !== 'string' && typeof value !== 'number') return null;
+        let text = String(value).trim().replace(/[\s\u00a0\u202f]/g, '').replace(',', '.');
+        if (!/^\+?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text)) return null;
+        text = text.replace(/^\+/, '');
+        const [whole = '0', fraction = ''] = text.split('.');
+        const normalized = (whole || '0').replace(/^0+(?=\d)/, '') + (fraction ? `.${fraction}` : '');
+        return normalized.length <= 40 ? normalized : null;
+      }
 
-function flagOf(code){
-  if(FLAG_OVERRIDES[code]) return FLAG_OVERRIDES[code];
-  const cc=code.slice(0,2);
-  if(code[0]==='X'||BAD_CC.has(cc)) return '🌍';
-  return String.fromCodePoint(...[...cc].map(ch=>0x1F1E6+ch.charCodeAt(0)-65));
-}
+      function toScaled(value) {
+        const text = cleanDecimal(value);
+        if (text === null) return null;
+        const [whole, fraction = ''] = text.split('.');
+        const retained = fraction.slice(0, 12).padEnd(12, '0');
+        const discarded = fraction.slice(12);
+        let result = BigInt(whole || '0') * SCALE + BigInt(retained || '0');
+        if (discarded && discarded[0] >= '5') result += 1n;
+        return result;
+      }
 
-/* ================= Состояние и localStorage ================= */
-const K_RATES='ew.rates',K_CUR='ew.currencies',K_THEME='ew.theme';
-const LS={
-  get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
-  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
-};
-let rates={},ratesUpdated=0,lastEdit=null,dragRow=null;
-let currencies=LS.get(K_CUR,['USD','EUR','RUB','GBP','JPY']);
+      function scaledToDecimal(value) {
+        const negative = value < 0n;
+        const absolute = negative ? -value : value;
+        const whole = absolute / SCALE;
+        const fraction = (absolute % SCALE).toString().padStart(12, '0').replace(/0+$/, '');
+        return `${negative ? '-' : ''}${whole}${fraction ? `.${fraction}` : ''}`;
+      }
 
-const $=id=>document.getElementById(id);
-const rowsEl=$('rows'),statusEl=$('updated'),refreshBtn=$('refreshBtn'),themeBtn=$('themeBtn'),
-      fab=$('fab'),overlay=$('overlay'),searchEl=$('search'),curListEl=$('curList');
+      function divideScaled(numerator, denominator) {
+        if (denominator === 0n) return null;
+        const negative = (numerator < 0n) !== (denominator < 0n);
+        const top = numerator < 0n ? -numerator : numerator;
+        const bottom = denominator < 0n ? -denominator : denominator;
+        const quotient = (top * SCALE + bottom / 2n) / bottom;
+        return negative ? -quotient : quotient;
+      }
 
-/* ================= Форматирование и парсинг ================= */
-function decimalsFor(code){const r=rates[code]||1;return r>=100?0:r>=1?2:4;}
-function fmtVal(v,code){
-  const d=decimalsFor(code);
-  return v.toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d});
-}
-function parseNum(s){
-  if(typeof s!=='string')return NaN;
-  s=s.replace(/[\s\u00A0\u202F'`]/g,'');
-  if(!s)return NaN;
-  if(s.includes('.')&&s.includes(','))s=s.replace(/,/g,'');   // запятая — разделитель тысяч
-  else s=s.replace(/,/g,'.');                                  // запятая — десятичный разделитель
-  if(!/^\d*(?:\.\d+)?$/.test(s)||s==='.')return NaN;
-  return parseFloat(s);
-}
-function plural(n,f){const a=n%10,b=n%100;
-  if(a===1&&b!==11)return f[0];
-  if(a>=2&&a<=4&&(b<10||b>=20))return f[1];
-  return f[2];}
-function relTime(ts){
-  const m=Math.floor((Date.now()-ts)/60000);
-  if(m<1)return 'только что';
-  if(m<60)return m+' '+plural(m,['минуту','минуты','минут'])+' назад';
-  const h=Math.floor(m/60);
-  if(h<24)return h+' '+plural(h,['час','часа','часов'])+' назад';
-  const d=Math.floor(h/24);
-  if(d<7)return d+' '+plural(d,['день','дня','дней'])+' назад';
-  return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short'}).format(ts);
-}
-function setStatus(text,isErr){statusEl.textContent=text;statusEl.classList.toggle('err',!!isErr);}
+      function migrateLegacyState(legacy) {
+        const oldCurrencies = Array.isArray(legacy.currencies) ? legacy.currencies.filter(item =>
+          item && /^[A-Z]{3}$/.test(item.code) && cleanDecimal(item.rate) && toScaled(item.rate) > 0n
+        ) : [];
+        const retained = oldCurrencies.filter(item => item.code !== 'TRY' && item.code !== 'EUR');
+        const base = retained.some(item => item.code === legacy.base)
+          ? legacy.base
+          : retained.some(item => item.code === 'RUB') ? 'RUB' : retained[0]?.code || 'RUB';
+        const targetRate = toScaled(oldCurrencies.find(item => item.code === base)?.rate || '1');
+        const currencies = retained.map(item => {
+          const rate = item.code === base ? '1' : scaledToDecimal(divideScaled(toScaled(item.rate), targetRate) || SCALE);
+          return {
+            code: item.code,
+            name: item.name || CURRENCY_NAMES[item.code] || item.code,
+            symbol: item.symbol || SYMBOLS[item.code] || item.code,
+            rate,
+            direction: 'currency-to-base',
+            quote: rate
+          };
+        });
+        const rubRate = toScaled(oldCurrencies.find(item => item.code === 'RUB')?.rate || '1');
+        const aedOldRate = (toScaled('25') * rubRate + SCALE / 2n) / SCALE;
+        const aedRate = base === 'RUB'
+          ? '25'
+          : scaledToDecimal(divideScaled(aedOldRate, targetRate) || SCALE);
+        if (!currencies.some(item => item.code === 'AED')) {
+          currencies.push({
+            code: 'AED', name: 'ОАЭ', symbol: 'د.إ', rate: aedRate,
+            direction: base === 'RUB' ? 'base-to-currency' : 'currency-to-base',
+            quote: base === 'RUB' ? '0.04' : aedRate
+          });
+        }
+        const validBase = currencies.some(item => item.code === base) ? base : 'RUB';
+        const active = currencies.some(item => item.code === legacy.active && item.code !== validBase)
+          ? legacy.active
+          : currencies.find(item => item.code === 'AED')?.code || currencies.find(item => item.code !== validBase)?.code;
+        return {
+          ...structuredClone(DEFAULTS),
+          base: validBase,
+          active,
+          reversed: legacy.reversed === true,
+          theme: legacy.theme === 'dark' ? 'dark' : 'light',
+          currencies
+        };
+      }
 
-/* ================= Загрузка курсов ================= */
-function getJSON(url){
-  const c=new AbortController(),t=setTimeout(()=>c.abort(),9000);
-  return fetch(url,{signal:c.signal})
-    .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
-    .finally(()=>clearTimeout(t));
-}
-async function fetchRates(){
-  refreshBtn.classList.add('spin');
-  try{
-    const d=await getJSON('https://open.er-api.com/v6/latest/USD');
-    if(d.result!=='success'||!d.rates)throw new Error('bad payload');
-    saveRates(d.rates,(d.time_last_update_unix||Math.floor(Date.now()/1000))*1000);
-  }catch(e){
-    try{ // запасной источник, если основной недоступен
-      const d=await getJSON('https://api.frankfurter.app/latest?from=USD');
-      if(!d.rates)throw new Error('bad payload');
-      d.rates.USD=1;
-      saveRates(d.rates,Date.parse(d.date)||Date.now());
-    }catch(e2){
-      if(!Object.keys(rates).length)
-        setStatus('Не удалось загрузить курсы. Проверьте подключение и нажмите ⟳.',true);
-      else
-        setStatus('Нет сети — показаны сохранённые курсы от '+relTime(ratesUpdated),true);
-      refreshBtn.classList.remove('spin');
-      return;
-    }
-  }
-  refreshBtn.classList.remove('spin');
-  recalc();
-}
-function saveRates(r,ts){
-  rates=r;ratesUpdated=ts;
-  LS.set(K_RATES,{rates:r,updated:ts});
-  setStatus('Курсы обновлены '+relTime(ts));
-}
+      function readState() {
+        try {
+          const current = localStorage.getItem(STORAGE_KEY);
+          const stored = JSON.parse(current || localStorage.getItem(LEGACY_STORAGE_KEY));
+          if (!stored || !Array.isArray(stored.currencies)) return structuredClone(DEFAULTS);
+          if (stored.version === 1) return migrateLegacyState(stored);
+          if (stored.version !== 2) return structuredClone(DEFAULTS);
+          const currencies = stored.currencies
+            .filter(item => item && /^[A-Z]{3}$/.test(item.code) && cleanDecimal(item.rate) && toScaled(item.rate) > 0n)
+            .map(item => ({
+              code: item.code,
+              name: String(item.name || CURRENCY_NAMES[item.code] || item.code).slice(0, 48),
+              symbol: String(item.symbol || SYMBOLS[item.code] || item.code).slice(0, 6),
+              rate: cleanDecimal(item.rate),
+              direction: item.direction === 'base-to-currency' ? 'base-to-currency' : 'currency-to-base',
+              quote: cleanDecimal(item.quote) || cleanDecimal(item.rate)
+            }));
+          if (currencies.length < 2) return structuredClone(DEFAULTS);
+          const base = currencies.some(item => item.code === stored.base) ? stored.base : currencies[0].code;
+          const baseItem = currencies.find(item => item.code === base);
+          const baseRate = toScaled(baseItem.rate);
+          currencies.forEach(item => {
+            if (item.code === base) item.rate = '1';
+            else item.rate = scaledToDecimal(divideScaled(toScaled(item.rate), baseRate) || SCALE);
+          });
+          baseItem.rate = '1';
+          const expandedPath = Array.isArray(stored.expandedPath)
+            ? stored.expandedPath.slice(0, 2).map(cleanDecimal).filter(Boolean)
+            : [];
+          return {
+            ...DEFAULTS, ...stored, currencies, base,
+            active: currencies.some(item => item.code === stored.active) && stored.active !== base ? stored.active : currencies.find(item => item.code !== base).code,
+            expandedPath,
+            selectedAmount: cleanDecimal(stored.selectedAmount),
+            editedAmount: cleanDecimal(stored.editedAmount),
+            rangeLevel: Number.isInteger(stored.rangeLevel) ? Math.min(2, Math.max(0, stored.rangeLevel)) : 0,
+            reversed: stored.reversed === true,
+            theme: stored.theme === 'dark' ? 'dark' : 'light'
+          };
+        } catch (_) {
+          return structuredClone(DEFAULTS);
+        }
+      }
 
-/* ================= Строки валют ================= */
-function inputOf(code){return rowsEl.querySelector('.row[data-code="'+code+'"] .amt');}
+      let state = readState();
+      let toastTimer;
 
-function rowEl(code){
-  const row=document.createElement('div');
-  row.className='row';row.dataset.code=code;
+      function persist() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+        }
+        catch (_) { showToast('Не удалось сохранить настройки в этом браузере'); }
+      }
 
-  const handle=document.createElement('div');
-  handle.className='handle';handle.title='Перетащите, чтобы изменить порядок';handle.textContent='⣿';
-  handle.draggable=true;
+      function currency(code) {
+        return state.currencies.find(item => item.code === code);
+      }
 
-  const cur=document.createElement('div');cur.className='cur';
-  const flag=document.createElement('div');flag.className='flag';flag.textContent=flagOf(code);
-  const meta=document.createElement('div');meta.className='meta';
-  const codeEl=document.createElement('div');codeEl.className='code';codeEl.textContent=code;
-  const nameEl=document.createElement('div');nameEl.className='name';nameEl.textContent=CURRENCIES[code]||code;
-  meta.append(codeEl,nameEl);cur.append(flag,meta);
+      function decimalProduct(a, b) {
+        return scaledToDecimal((toScaled(a) * toScaled(b) + SCALE / 2n) / SCALE);
+      }
 
-  const inp=document.createElement('input');
-  inp.className='amt';inp.type='text';inp.inputMode='decimal';inp.autocomplete='off';inp.spellcheck=false;
-  inp.addEventListener('input',()=>{const v=parseNum(inp.value);applyFrom(code,Number.isFinite(v)?v:null);});
-  inp.addEventListener('focus',()=>inp.select());
-  inp.addEventListener('blur',()=>{const v=parseNum(inp.value);inp.value=Number.isFinite(v)?fmtVal(v,code):'';});
+      function convert(amount, source, target) {
+        const input = toScaled(amount);
+        if (input === null) return null;
+        if (source === target) return input;
+        const base = state.base;
+        const sourceRate = source === base ? SCALE : toScaled(currency(source).rate);
+        const targetRate = target === base ? SCALE : toScaled(currency(target).rate);
+        if (source === base) return (input * SCALE + targetRate / 2n) / targetRate;
+        if (target === base) return (input * sourceRate + SCALE / 2n) / SCALE;
+        return (input * sourceRate + targetRate / 2n) / targetRate;
+      }
 
-  const del=document.createElement('button');
-  del.className='del';del.type='button';del.title='Убрать валюту';del.textContent='✕';
-  del.addEventListener('click',()=>{
-    if(currencies.length<=1)return;
-    currencies=currencies.filter(c=>c!==code);
-    LS.set(K_CUR,currencies);render();recalc();
-  });
+      function formatAmount(scaled, code) {
+        if (scaled === null) return '—';
+        const absolute = scaled < 0n ? -scaled : scaled;
+        const precision = absolute >= 100n * SCALE ? 2 : 4;
+        const rounding = 10n ** BigInt(12 - precision);
+        const rounded = ((absolute + rounding / 2n) / rounding) * rounding;
+        const whole = rounded / SCALE;
+        const fraction = (rounded % SCALE).toString().padStart(12, '0').slice(0, precision).replace(/0+$/, '').padEnd(2, '0');
+        const grouped = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');
+        const symbol = currency(code)?.symbol || code;
+        return `${scaled < 0n ? '−' : ''}${grouped},${fraction} ${symbol}`;
+      }
 
-  row.append(handle,cur,inp,del);
-  row.addEventListener('dragstart',e=>{
-    dragRow=row;row.classList.add('dragging');e.dataTransfer.effectAllowed='move';
-    try{e.dataTransfer.setData('text/plain',code);}catch(_){}
-  });
-  row.addEventListener('dragend',()=>{
-    row.classList.remove('dragging');dragRow=null;
-    currencies=[...rowsEl.querySelectorAll('.row')].map(r=>r.dataset.code);
-    LS.set(K_CUR,currencies);
-  });
-  return row;
-}
+      function quoteText(item) {
+        if (item.direction === 'base-to-currency') {
+          return `1 ${state.base} = ${item.quote} ${item.code}`;
+        }
+        return `1 ${item.code} = ${item.quote} ${state.base}`;
+      }
 
-function render(){
-  if(Object.keys(rates).length)
-    currencies=currencies.filter(c=>rates[c]!==undefined||CURRENCIES[c]);
-  LS.set(K_CUR,currencies);
-  rowsEl.innerHTML='';
-  if(!currencies.length){
-    rowsEl.innerHTML='<div class="empty">Валюты не выбраны. Нажмите «+», чтобы добавить.</div>';
-    return;
-  }
-  currencies.forEach(code=>rowsEl.appendChild(rowEl(code)));
-  const dis=currencies.length<=1;
-  rowsEl.querySelectorAll('.del').forEach(b=>b.disabled=dis);
-}
+      function rootAmounts(level) {
+        const multiplier = 10n ** BigInt(level);
+        return Array.from({ length: 10 }, (_, index) => scaledToDecimal(BigInt(index + 1) * multiplier * SCALE));
+      }
 
-/* пересчёт всех полей относительно поля-источника */
-function applyFrom(src,val){
-  lastEdit=(val===null||val===undefined)?null:{code:src,val};
-  rowsEl.querySelectorAll('.row').forEach(row=>{
-    const code=row.dataset.code;
-    if(code===src)return;
-    const inp=row.querySelector('.amt');
-    inp.value=(val===null||val===undefined||!rates[src]||!rates[code])
-      ?'':fmtVal(val/rates[src]*rates[code],code);
-  });
-}
+      function childAmounts(parent, level, depth) {
+        const exponent = level - depth - 1;
+        const step = exponent >= 0
+          ? SCALE * 10n ** BigInt(exponent)
+          : SCALE / 10n ** BigInt(-exponent);
+        const start = toScaled(parent);
+        return Array.from({ length: 9 }, (_, index) => scaledToDecimal(start + step * BigInt(index + 1)));
+      }
 
-/* пересчитать по последнему вводу либо от первой валюты (значение 1) */
-function recalc(){
-  if(lastEdit&&rates[lastEdit.code]!==undefined&&Number.isFinite(lastEdit.val)){
-    const srcInp=inputOf(lastEdit.code);
-    if(srcInp)srcInp.value=fmtVal(lastEdit.val,lastEdit.code);
-    applyFrom(lastEdit.code,lastEdit.val);
-    return;
-  }
-  const first=currencies.find(c=>rates[c]!==undefined)||currencies[0];
-  if(!first)return;
-  const inp=inputOf(first);
-  if(!inp)return;
-  let v=parseNum(inp.value);
-  if(!Number.isFinite(v)){v=1;inp.value=fmtVal(1,first);}
-  applyFrom(first,v);
-}
+      function formatSourceValue(value, depth) {
+        const [whole, fraction = ''] = cleanDecimal(value).split('.');
+        const minimumFraction = depth > 0 && (state.rangeLevel === 0 || (state.rangeLevel === 1 && depth === 2)) ? 2 : 0;
+        const decimals = fraction.replace(/0+$/, '').padEnd(minimumFraction, '0');
+        const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');
+        const symbol = currency(state.reversed ? state.base : state.active)?.symbol || '';
+        return `${grouped}${decimals ? `,${decimals}` : ''} ${symbol}`;
+      }
 
-/* ================= Drag & drop сортировка ================= */
-rowsEl.addEventListener('dragover',e=>{
-  if(!dragRow)return;
-  e.preventDefault();
-  const after=[...rowsEl.querySelectorAll('.row:not(.dragging)')].reduce((best,child)=>{
-    const box=child.getBoundingClientRect();
-    const off=e.clientY-box.top-box.height/2;
-    return(off<0&&off>best.off)?{off,el:child}:best;
-  },{off:-Infinity,el:null}).el;
-  if(after==null)rowsEl.appendChild(dragRow);else rowsEl.insertBefore(dragRow,after);
-});
+      function renderAmountRow(value, depth) {
+        const expanded = state.expandedPath.length > depth && state.expandedPath[depth] === value;
+        const editing = depth === 2 && state.selectedAmount === value;
+        const displayedValue = editing ? state.editedAmount || value : value;
+        const source = state.reversed ? state.base : state.active;
+        const target = state.reversed ? state.active : state.base;
+        const result = convert(displayedValue, source, target);
+        const rowClass = `conversion-row${depth ? ' nested-row' : ''}${expanded ? ' is-expanded' : ''}${editing ? ' is-selected' : ''}`;
+        const amountMarkup = editing
+          ? `<input class="amount-input" id="selected-amount" aria-label="Редактировать сумму в ${escapeHTML(source)}" inputmode="decimal" autocomplete="off" value="${escapeHTML(displayedValue)}">`
+          : `<span>${formatSourceValue(value, depth)}</span><span class="expand-chevron" aria-hidden="true">${expanded ? '⌃' : '⌄'}</span>`;
+        const row = editing
+          ? `<div class="${rowClass}" style="--depth:${depth}" aria-current="true"><span class="row-source">${amountMarkup}</span><span class="target-value">${formatAmount(result, target)}</span></div>`
+          : `<button class="${rowClass}" style="--depth:${depth}" type="button" data-expand="${escapeHTML(value)}" data-depth="${depth}" aria-expanded="${expanded}">
+              <span class="row-source">${amountMarkup}</span><span class="target-value">${formatAmount(result, target)}</span>
+            </button>`;
+        if (!expanded) return row;
+        return row + childAmounts(value, state.rangeLevel, depth).map(child => renderAmountRow(child, depth + 1)).join('');
+      }
 
-/* ================= Модалка выбора валют ================= */
-function openModal(){overlay.classList.remove('hidden');searchEl.value='';renderCurList('');setTimeout(()=>searchEl.focus(),50);}
-function closeModal(){overlay.classList.add('hidden');}
-function renderCurList(q){
-  q=(q||'').trim().toLowerCase();
-  const all=new Set([...Object.keys(CURRENCIES),...Object.keys(rates)]);
-  let items=[...all].map(c=>({code:c,name:CURRENCIES[c]||c}));
-  items.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
-  if(q)items=items.filter(i=>i.name.toLowerCase().includes(q)||i.code.toLowerCase().includes(q));
-  curListEl.innerHTML='';
-  if(!items.length){curListEl.innerHTML='<div class="empty">Ничего не найдено</div>';return;}
-  items.forEach(i=>{
-    const b=document.createElement('button');
-    b.type='button';b.className='cur-item';
-    const f=document.createElement('span');f.className='flag';f.textContent=flagOf(i.code);
-    const c=document.createElement('span');c.className='code';c.textContent=i.code;
-    const n=document.createElement('span');n.className='name';n.textContent=i.name;
-    const t=document.createElement('span');t.className='tick';t.textContent=currencies.includes(i.code)?'✓':'';
-    b.append(f,c,n,t);
-    b.addEventListener('click',()=>toggleCurrency(i.code));
-    curListEl.appendChild(b);
-  });
-}
-function toggleCurrency(code){
-  if(currencies.includes(code)){
-    if(currencies.length<=1)return;
-    currencies=currencies.filter(c=>c!==code);
-  }else{
-    currencies.push(code);
-  }
-  LS.set(K_CUR,currencies);
-  render();recalc();
-  renderCurList(searchEl.value);
-}
+      function renderHome() {
+        const active = currency(state.active);
+        if (!active) return;
+        const source = state.reversed ? state.base : state.active;
+        const target = state.reversed ? state.active : state.base;
+        els.pairTitle.innerHTML = `${escapeHTML(source)} <span>→</span> ${escapeHTML(target)}`;
+        els.sourceHeading.textContent = source;
+        els.targetHeading.textContent = target;
+        els.rateNote.textContent = quoteText(active);
+        els.rateValue.textContent = quoteText(active);
+        const levels = ['Единицы', 'Десятки', 'Сотни'];
+        els.rangeLabel.textContent = `Масштаб · ${levels[state.rangeLevel]}`;
+        $('range-down').disabled = state.rangeLevel === 0;
+        $('range-up').disabled = state.rangeLevel === 2;
 
-/* ================= Тема ================= */
-function applyTheme(t){
-  document.documentElement.dataset.theme=t;
-  themeBtn.textContent=t==='dark'?'☀️':'🌙';
-  LS.set(K_THEME,t);
-}
-themeBtn.addEventListener('click',()=>applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
+        els.switcher.innerHTML = state.currencies
+          .filter(item => item.code !== state.base)
+          .map(item => `<button class="currency-chip" type="button" data-code="${escapeHTML(item.code)}" aria-pressed="${item.code === state.active}"><span>${escapeHTML(item.symbol)}</span>${escapeHTML(item.code)}</button>`)
+          .join('');
+        els.switcher.querySelectorAll('.currency-chip').forEach(button => {
+          button.addEventListener('click', () => {
+            state.active = button.dataset.code;
+            persist();
+            renderHome();
+          });
+        });
 
-/* ================= События ================= */
-fab.addEventListener('click',openModal);
- $('closeModal').addEventListener('click',closeModal);
-overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
-searchEl.addEventListener('input',()=>renderCurList(searchEl.value));
-searchEl.addEventListener('keydown',e=>{if(e.key==='Enter'){const f=curListEl.querySelector('.cur-item');if(f)f.click();}});
-refreshBtn.addEventListener('click',()=>fetchRates());
-window.addEventListener('online',()=>fetchRates());
+        els.list.innerHTML = rootAmounts(state.rangeLevel).map(value => renderAmountRow(value, 0)).join('');
 
-/* ================= Старт ================= */
-const cached=LS.get(K_RATES,null);
-if(cached&&cached.rates&&cached.updated){
-  rates=cached.rates;ratesUpdated=cached.updated;
-  setStatus('Курсы от '+relTime(ratesUpdated));
-}
-render();
-recalc();
-if(navigator.onLine)fetchRates();
-else setStatus('Нет сети — при подключении курсы обновятся автоматически.',true);
-})();
-</script>
+        els.list.querySelectorAll('button[data-expand]').forEach(button => {
+          button.addEventListener('click', () => {
+            const depth = Number(button.dataset.depth);
+            const value = button.dataset.expand;
+            if (depth === 2) {
+              state.selectedAmount = value;
+              state.editedAmount = value;
+            } else {
+              const parentPath = state.expandedPath.slice(0, depth);
+              state.expandedPath = state.expandedPath[depth] === value
+                ? parentPath
+                : [...parentPath, value];
+              state.selectedAmount = null;
+              state.editedAmount = null;
+            }
+            persist();
+            renderHome();
+            if (depth === 2) {
+              $('selected-amount').focus();
+              $('selected-amount').select();
+            }
+          });
+        });
+        const input = $('selected-amount');
+        if (input) {
+          input.addEventListener('input', () => {
+            const value = cleanDecimal(input.value);
+            if (!value || toScaled(value) === 0n) return;
+            state.editedAmount = value;
+            persist();
+            const result = convert(value, source, target);
+            els.list.querySelector('.is-selected .target-value').textContent = formatAmount(result, target);
+          });
+          input.addEventListener('blur', () => {
+            const value = cleanDecimal(input.value);
+            if (!value || toScaled(value) === 0n) {
+              input.value = state.editedAmount || state.selectedAmount;
+              return;
+            }
+            state.editedAmount = value;
+            persist();
+          });
+        }
+      }
+
+      function renderSettings() {
+        els.baseSelect.innerHTML = state.currencies.map(item =>
+          `<option value="${escapeHTML(item.code)}" ${item.code === state.base ? 'selected' : ''}>${escapeHTML(item.code)} — ${escapeHTML(item.name)}</option>`
+        ).join('');
+        els.currencies.innerHTML = state.currencies.map(item => {
+          const isBase = item.code === state.base;
+          const direction = item.direction;
+          const label = direction === 'base-to-currency'
+            ? `1 ${state.base} =`
+            : `1 ${item.code} =`;
+          const suffix = direction === 'base-to-currency' ? item.code : state.base;
+          return `<div class="managed-currency" data-code="${escapeHTML(item.code)}">
+            <div class="currency-edit-head">
+              <div class="currency-identity"><strong>${escapeHTML(item.code)}</strong><span>${escapeHTML(item.name)}</span></div>
+              ${isBase ? '<span class="base-badge">основная</span>' : `<button class="remove-button" type="button" data-remove="${escapeHTML(item.code)}">Удалить</button>`}
+            </div>
+            <div class="edit-grid">
+              <label class="field">Код<input data-field="code" value="${escapeHTML(item.code)}" maxlength="3" ${isBase ? 'disabled' : ''}></label>
+              <label class="field">Символ<input data-field="symbol" value="${escapeHTML(item.symbol)}" maxlength="6"></label>
+              <label class="field">Название<input data-field="name" value="${escapeHTML(item.name)}" maxlength="48"></label>
+              ${isBase ? '' : `<label class="field">Направление курса<select data-field="direction"><option value="currency-to-base" ${direction === 'currency-to-base' ? 'selected' : ''}>1 ${escapeHTML(item.code)} = N ${escapeHTML(state.base)}</option><option value="base-to-currency" ${direction === 'base-to-currency' ? 'selected' : ''}>1 ${escapeHTML(state.base)} = N ${escapeHTML(item.code)}</option></select></label>`}
+            </div>
+            ${isBase ? '<p class="settings-help">1 основная валюта = 1 основная валюта</p>' : `<label class="field quote-field" data-quote-label>${escapeHTML(label)}<span class="quote-input-wrap"><span>1 ${escapeHTML(direction === 'base-to-currency' ? state.base : item.code)} =</span><input data-field="quote" inputmode="decimal" value="${escapeHTML(item.quote)}"><span>${escapeHTML(suffix)}</span></span></label>`}
+          </div>`;
+        }).join('');
+        updateNewQuoteLabel();
+        bindSettingsEvents();
+      }
+
+      function updateNewQuoteLabel() {
+        const form = els.addForm;
+        const direction = form.elements.direction.value;
+        const newCode = form.elements.code.value.trim().toUpperCase() || 'новая валюта';
+        els.newQuoteLabel.textContent = 'Курс';
+        els.newQuotePrefix.textContent = direction === 'base-to-currency' ? `1 ${state.base} =` : `1 ${newCode} =`;
+        els.newQuoteSuffix.textContent = direction === 'base-to-currency' ? newCode : state.base;
+      }
+
+      function bindSettingsEvents() {
+        els.baseSelect.onchange = () => setBaseCurrency(els.baseSelect.value);
+        els.currencies.querySelectorAll('[data-field]').forEach(input => {
+          input.addEventListener('change', () => updateCurrencyField(input));
+          if (input.dataset.field === 'quote') input.addEventListener('keydown', event => {
+            if (event.key === 'Enter') { event.preventDefault(); input.blur(); }
+          });
+        });
+        els.currencies.querySelectorAll('[data-remove]').forEach(button => {
+          button.addEventListener('click', () => removeCurrency(button.dataset.remove));
+        });
+      }
+
+      function updateCurrencyField(input) {
+        const card = input.closest('.managed-currency');
+        const item = currency(card.dataset.code);
+        if (!item) return;
+        const field = input.dataset.field;
+        if (field === 'code') {
+          const code = input.value.trim().toUpperCase();
+          if (!/^[A-Z]{3}$/.test(code) || (currency(code) && code !== item.code)) {
+            input.value = item.code;
+            showToast('Укажите уникальный код из трёх букв');
+            return;
+          }
+          const previous = item.code;
+          item.code = code;
+          if (state.active === previous) state.active = code;
+          if (state.base === previous) state.base = code;
+        } else if (field === 'name') {
+          item.name = input.value.trim().slice(0, 48) || item.code;
+        } else if (field === 'symbol') {
+          item.symbol = input.value.trim().slice(0, 6) || item.code;
+        } else if (field === 'direction') {
+          const value = toScaled(item.rate);
+          item.direction = input.value;
+          if (item.direction === 'base-to-currency') {
+            item.quote = scaledToDecimal(divideScaled(SCALE, value));
+          } else {
+            item.quote = item.rate;
+          }
+        } else if (field === 'quote') {
+          const quote = cleanDecimal(input.value);
+          if (!quote || toScaled(quote) === 0n) {
+            input.value = item.quote;
+            showToast('Курс должен быть больше нуля');
+            return;
+          }
+          item.quote = quote;
+          item.rate = item.direction === 'base-to-currency'
+            ? scaledToDecimal(divideScaled(SCALE, toScaled(quote)))
+            : quote;
+        }
+        persist();
+        renderHome();
+        if (field !== 'quote') renderSettings();
+      }
+
+      function setBaseCurrency(nextCode) {
+        if (nextCode === state.base) return;
+        const oldBaseRate = toScaled(currency(nextCode).rate);
+        state.currencies.forEach(item => {
+          item.rate = item.code === nextCode ? '1' : scaledToDecimal(divideScaled(toScaled(item.rate), oldBaseRate));
+          if (item.code !== nextCode) {
+            item.direction = 'currency-to-base';
+            item.quote = item.rate;
+          } else {
+            item.direction = 'currency-to-base';
+            item.quote = '1';
+          }
+        });
+        state.base = nextCode;
+        if (state.active === nextCode) state.active = state.currencies.find(item => item.code !== nextCode).code;
+        state.reversed = false;
+        persist();
+        renderHome();
+        renderSettings();
+      }
+
+      function removeCurrency(code) {
+        if (code === state.base) {
+          showToast('Сначала выберите другую основную валюту');
+          return;
+        }
+        if (state.currencies.filter(item => item.code !== state.base).length <= 1) {
+          showToast('Добавьте другую валюту перед удалением последней');
+          return;
+        }
+        state.currencies = state.currencies.filter(item => item.code !== code);
+        if (state.active === code) state.active = state.currencies.find(item => item.code !== state.base).code;
+        persist();
+        renderHome();
+        renderSettings();
+      }
+
+      function addCurrency(event) {
+        event.preventDefault();
+        const form = els.addForm;
+        const data = new FormData(form);
+        const code = String(data.get('code') || '').trim().toUpperCase();
+        const name = String(data.get('name') || '').trim();
+        const symbol = String(data.get('symbol') || '').trim();
+        const direction = String(data.get('direction'));
+        const quote = cleanDecimal(String(data.get('rate') || ''));
+        if (!/^[A-Z]{3}$/.test(code) || currency(code)) {
+          showToast('Введите уникальный код валюты из трёх букв');
+          return;
+        }
+        if (!name || !quote || toScaled(quote) === 0n) {
+          showToast('Проверьте название и курс — он должен быть больше нуля');
+          return;
+        }
+        const rate = direction === 'base-to-currency'
+          ? scaledToDecimal(divideScaled(SCALE, toScaled(quote)))
+          : quote;
+        state.currencies.push({ code, name, symbol: symbol || SYMBOLS[code] || code, rate, direction, quote });
+        state.active = code;
+        state.reversed = false;
+        persist();
+        form.reset();
+        updateNewQuoteLabel();
+        renderHome();
+        renderSettings();
+        showToast(`${code} добавлена`);
+      }
+
+      function adjustRange(direction) {
+        const nextLevel = Math.min(2, Math.max(0, state.rangeLevel + direction));
+        if (nextLevel === state.rangeLevel) return;
+        state.rangeLevel = nextLevel;
+        state.expandedPath = [];
+        state.selectedAmount = null;
+        state.editedAmount = null;
+        persist();
+        renderHome();
+      }
+
+      function showToast(message) {
+        els.toast.textContent = message;
+        els.toast.classList.add('visible');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => els.toast.classList.remove('visible'), 2300);
+      }
+
+      function setTheme(theme) {
+        state.theme = theme;
+        document.documentElement.dataset.theme = theme;
+        $('theme-color').content = theme === 'dark' ? '#181923' : '#f7f6f2';
+        els.themeButton.textContent = theme === 'dark' ? '☀' : '☾';
+        persist();
+      }
+
+      function openSettings() {
+        renderSettings();
+        els.overlay.hidden = false;
+        document.body.style.overflow = 'hidden';
+        $('close-settings').focus();
+      }
+
+      function closeSettings() {
+        els.overlay.hidden = true;
+        document.body.style.overflow = '';
+        $('settings-button').focus();
+      }
+
+      function resetSettings() {
+        if (!window.confirm('Сбросить настройки и вернуть пример валют?')) return;
+        state = structuredClone(DEFAULTS);
+        persist();
+        setTheme(state.theme);
+        renderHome();
+        renderSettings();
+        showToast('Настройки сброшены');
+      }
+
+      $('swap-button').addEventListener('click', () => {
+        state.reversed = !state.reversed;
+        persist();
+        renderHome();
+      });
+      $('range-down').addEventListener('click', () => adjustRange(-1));
+      $('range-up').addEventListener('click', () => adjustRange(1));
+      $('theme-button').addEventListener('click', () => setTheme(state.theme === 'dark' ? 'light' : 'dark'));
+      $('settings-button').addEventListener('click', openSettings);
+      $('close-settings').addEventListener('click', closeSettings);
+      $('done-button').addEventListener('click', closeSettings);
+      $('reset-button').addEventListener('click', resetSettings);
+      $('add-currency-form').addEventListener('submit', addCurrency);
+      $('add-currency-form').elements.direction.addEventListener('change', updateNewQuoteLabel);
+      $('add-currency-form').elements.code.addEventListener('input', updateNewQuoteLabel);
+      document.addEventListener('keydown', event => { if (event.key === 'Escape' && !els.overlay.hidden) closeSettings(); });
+      els.list.addEventListener('wheel', event => {
+        const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY)
+          ? event.deltaX
+          : event.shiftKey ? event.deltaY : 0;
+        if (Math.abs(delta) < 12) return;
+        event.preventDefault();
+        adjustRange(delta < 0 ? 1 : -1);
+      }, { passive: false });
+      let touchStart = null;
+      els.list.addEventListener('touchstart', event => {
+        touchStart = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+      }, { passive: true });
+      els.list.addEventListener('touchend', event => {
+        if (!touchStart) return;
+        const deltaX = event.changedTouches[0].clientX - touchStart.x;
+        const deltaY = event.changedTouches[0].clientY - touchStart.y;
+        if (Math.abs(deltaX) > 55 && Math.abs(deltaX) > Math.abs(deltaY)) adjustRange(deltaX < 0 ? 1 : -1);
+        touchStart = null;
+      }, { passive: true });
+
+      document.documentElement.dataset.theme = state.theme;
+      $('theme-color').content = state.theme === 'dark' ? '#181923' : '#f7f6f2';
+      els.themeButton.textContent = state.theme === 'dark' ? '☀' : '☾';
+      persist();
+      renderHome();
+    })();
+  </script>
 </body>
 </html>
