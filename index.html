@@ -94,27 +94,32 @@
     .theme-setting-title { font-size: 14px; }
     .intro { margin: 0 0 23px; }
     .eyebrow { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-    .pair-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 9px; }
-    .pair-title { margin: 0; font-size: clamp(24px, 5vw, 32px); line-height: 1.15; letter-spacing: -1.1px; font-weight: 640; }
-    .pair-title span { color: var(--muted); font-weight: 420; }
-    .swap-button {
-      flex: none; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 50%;
-      background: var(--surface); color: var(--accent-strong); cursor: pointer; font-size: 18px;
-      transition: transform .25s ease, background .2s ease;
+    .pair-heading { display: flex; align-items: center; margin-top: 9px; }
+    .pair-heading-title { margin: 0; }
+    .pair-title {
+      display: inline-flex; align-items: baseline; gap: 10px; padding: 0; border: 0;
+      border-radius: 4px; background: transparent; color: var(--ink); cursor: pointer;
+      text-align: left; font: inherit; font-size: clamp(24px, 5vw, 32px);
+      line-height: 1.15; letter-spacing: -1.1px; font-weight: 640;
     }
-    .swap-button:hover { background: var(--accent-soft); transform: rotate(180deg); }
+    .pair-title span { color: var(--muted); font-weight: 420; }
+    .pair-title:hover span { color: var(--accent-strong); }
+    .pair-title:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
     .rate-note { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
     .currency-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 17px; }
     .currency-switcher { display: flex; flex: 1; min-width: 0; gap: 12px; overflow-x: auto; margin: 0; padding: 0 5px; scrollbar-width: none; }
     .currency-switcher::-webkit-scrollbar { display: none; }
     .currency-actions { display: flex; flex: none; align-items: center; gap: 6px; }
     .currency-chip {
-      flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 39px;
-      padding: 0 14px; border: 1px solid var(--line); border-radius: 999px;
+      flex: none; display: inline-flex; align-items: center; justify-content: center;
+      width: 39px; height: 39px; padding: 0; border: 1px solid var(--line); border-radius: 50%;
       background: var(--surface); color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 650;
       transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease;
     }
-    .currency-chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .currency-chip[aria-pressed="true"] {
+      width: auto; min-width: 39px; gap: 8px; padding: 0 14px;
+      border-color: var(--accent); border-radius: 999px; background: var(--accent); color: #fff;
+    }
     html[data-theme="dark"] .currency-chip[aria-pressed="true"] { color: #172019; }
     .currency-chip:active { transform: scale(.96); }
     .conversion-card {
@@ -122,7 +127,7 @@
       background: var(--surface); box-shadow: var(--shadow);
     }
     .table-head {
-      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px;
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px;
       padding: 16px 21px 13px; color: var(--muted); font-size: 11px; font-weight: 700;
       letter-spacing: .07em; text-transform: uppercase;
     }
@@ -130,7 +135,7 @@
     .table-head span:last-child { text-align: left; }
     .conversion-list { overscroll-behavior: contain; touch-action: pan-y; }
     .conversion-row {
-      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px;
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px;
       align-items: center; width: 100%; min-height: 70px; padding: 12px 21px;
       border: 0; border-top: 1px solid var(--line); background: transparent; text-align: left;
       cursor: pointer; transition: background .2s ease, min-height .2s ease;
@@ -235,6 +240,7 @@
       .conversion-row { min-height: 66px; padding-right: 17px; padding-left: 17px; }
       .conversion-row.is-selected { min-height: 74px; }
       .table-head { padding-right: 17px; padding-left: 17px; }
+      .table-head, .conversion-row { gap: 28px; }
       .settings-overlay { padding: max(18px, env(safe-area-inset-top)) 15px 15px; }
       .settings-card { padding: 14px; }
       .rate-card { padding: 14px 15px; }
@@ -257,11 +263,12 @@
       </div>
     </header>
 
-    <section class="intro" aria-labelledby="pair-title">
+    <section class="intro" aria-labelledby="pair-heading-title">
       <div class="eyebrow">Мой обмен</div>
       <div class="pair-heading">
-        <h2 id="pair-title" class="pair-title">AED <span>→</span> RUB</h2>
-        <button id="swap-button" class="swap-button" type="button" aria-label="Поменять направление" title="Поменять направление">⇄</button>
+        <h2 id="pair-heading-title" class="pair-heading-title">
+          <button id="pair-title" class="pair-title" type="button" aria-label="Поменять направление конвертации" title="Поменять направление конвертации">AED <span>→</span> RUB</button>
+        </h2>
       </div>
       <p id="rate-note" class="rate-note"></p>
     </section>
@@ -667,7 +674,10 @@
 
         els.switcher.innerHTML = state.currencies
           .filter(item => item.code !== state.base)
-          .map(item => `<button class="currency-chip" type="button" data-code="${escapeHTML(item.code)}" aria-pressed="${item.code === state.active}"><span>${escapeHTML(item.symbol)}</span>${escapeHTML(item.code)}</button>`)
+          .map(item => {
+            const selected = item.code === state.active;
+            return `<button class="currency-chip" type="button" data-code="${escapeHTML(item.code)}" aria-label="${escapeHTML(item.name)} (${escapeHTML(item.code)})" aria-pressed="${selected}"><span>${escapeHTML(item.symbol)}</span>${selected ? `<span>${escapeHTML(item.code)}</span>` : ''}</button>`;
+          })
           .join('');
         els.switcher.querySelectorAll('.currency-chip').forEach(button => {
           button.addEventListener('click', () => {
@@ -964,7 +974,7 @@
         showToast('Настройки сброшены');
       }
 
-      $('swap-button').addEventListener('click', () => {
+      $('pair-title').addEventListener('click', () => {
         state.reversed = !state.reversed;
         persist();
         renderHome();
