@@ -110,7 +110,8 @@
       padding: 16px 21px 13px; color: var(--muted); font-size: 11px; font-weight: 700;
       letter-spacing: .07em; text-transform: uppercase;
     }
-    .table-head span:last-child { text-align: right; }
+    .table-head span:first-child { text-align: right; }
+    .table-head span:last-child { text-align: left; }
     .conversion-list { overscroll-behavior: contain; touch-action: pan-y; }
     .conversion-row {
       display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px;
@@ -124,12 +125,12 @@
     .conversion-row.is-expanded { background: var(--accent-soft); }
     .conversion-row.nested-row { min-height: 58px; padding-left: calc(21px + var(--depth, 1) * 12px); background: var(--surface-soft); }
     .conversion-row.nested-row:hover { background: var(--accent-soft); }
-    .row-source { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .row-source { display: flex; align-items: center; justify-content: flex-end; gap: 9px; min-width: 0; }
     .expand-chevron { flex: none; width: 15px; color: var(--muted); font-size: 15px; transition: transform .18s ease; }
     .is-expanded .expand-chevron { transform: rotate(180deg); color: var(--accent-strong); }
     .source-value, .target-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .source-value { font-size: clamp(18px, 4vw, 21px); font-weight: 590; letter-spacing: -.45px; }
-    .target-value { text-align: right; font-size: clamp(18px, 4vw, 21px); font-weight: 560; letter-spacing: -.4px; }
+    .source-value { text-align: right; font-size: clamp(18px, 4vw, 21px); font-weight: 590; letter-spacing: -.45px; }
+    .target-value { text-align: left; font-size: clamp(18px, 4vw, 21px); font-weight: 560; letter-spacing: -.4px; }
     .is-selected .source-value, .is-selected .target-value { color: var(--accent-strong); font-weight: 700; }
     .amount-input {
       display: block; width: 100%; min-width: 0; padding: 0; border: 0; border-radius: 5px;
@@ -139,17 +140,19 @@
     .amount-input:focus { box-shadow: 0 1px 0 var(--accent); }
     @keyframes row-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     .table-controls {
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px;
       padding: 15px 19px; border-top: 1px solid var(--line);
     }
     .range-label { color: var(--muted); font-size: 12px; }
-    .range-actions { display: flex; align-items: center; gap: 8px; }
+    .range-actions { display: flex; align-items: center; justify-content: center; gap: 8px; }
     .range-button {
       width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 11px;
       background: var(--surface); cursor: pointer; font-size: 18px; transition: background .18s ease, transform .16s ease;
     }
     .range-button:hover { background: var(--accent-soft); }
     .range-button:active { transform: scale(.92); }
+    .range-button:disabled { opacity: .45; cursor: default; }
+    .collapse-button { justify-self: end; }
     .rate-card {
       display: flex; align-items: center; justify-content: space-between; gap: 14px;
       margin-top: 14px; padding: 16px 19px; border: 1px solid var(--line);
@@ -252,6 +255,7 @@
           <button id="range-down" class="range-button" type="button" aria-label="Уменьшить масштаб">←</button>
           <button id="range-up" class="range-button" type="button" aria-label="Увеличить масштаб">→</button>
         </div>
+        <button id="collapse-all" class="range-button collapse-button" type="button" aria-label="Свернуть все" title="Свернуть все" hidden>⌃</button>
       </div>
     </section>
 
@@ -320,11 +324,12 @@
     (() => {
       'use strict';
 
-      const STORAGE_KEY = 'exchange.settings.v2';
+      const STORAGE_KEY = 'exchange.settings.v3';
+      const PREVIOUS_STORAGE_KEY = 'exchange.settings.v2';
       const LEGACY_STORAGE_KEY = 'exchange.settings.v1';
       const SCALE = 1000000000000n;
       const DEFAULTS = {
-        version: 2,
+        version: 3,
         base: 'RUB',
         active: 'AED',
         reversed: false,
@@ -336,7 +341,9 @@
         currencies: [
           { code: 'RUB', name: 'Российский рубль', symbol: '₽', rate: '1', direction: 'currency-to-base', quote: '1' },
           { code: 'AED', name: 'ОАЭ', symbol: 'د.إ', rate: '25', direction: 'base-to-currency', quote: '0.04' },
-          { code: 'USD', name: 'Доллары', symbol: '$', rate: '90', direction: 'currency-to-base', quote: '90' }
+          { code: 'USD', name: 'Доллары', symbol: '$', rate: '90', direction: 'currency-to-base', quote: '90' },
+          { code: 'EUR', name: 'Евро', symbol: '€', rate: '100', direction: 'currency-to-base', quote: '100' },
+          { code: 'MVR', name: 'Мальдивская руфия', symbol: 'ރ', rate: '5.8', direction: 'currency-to-base', quote: '5.8' }
         ]
       };
       const CURRENCY_NAMES = {
@@ -346,13 +353,13 @@
         HKD: 'Гонконгский доллар', HUF: 'Венгерский форинт', IDR: 'Индонезийская рупия', ILS: 'Израильский шекель',
         INR: 'Индийская рупия', ISK: 'Исландская крона', JPY: 'Японская иена', KRW: 'Южнокорейская вона',
         KZT: 'Казахстанский тенге', MXN: 'Мексиканское песо', MYR: 'Малайзийский ринггит', NOK: 'Норвежская крона',
-        NZD: 'Новозеландский доллар', PHP: 'Филиппинское песо', PLN: 'Польский злотый', RON: 'Румынский лей',
+        MVR: 'Мальдивская руфия', NZD: 'Новозеландский доллар', PHP: 'Филиппинское песо', PLN: 'Польский злотый', RON: 'Румынский лей',
         RUB: 'Российский рубль', SAR: 'Саудовский риял', SEK: 'Шведская крона', SGD: 'Сингапурский доллар',
         THB: 'Тайский бат', TRY: 'Турецкая лира', TWD: 'Тайваньский доллар', UAH: 'Украинская гривна',
         USD: 'Доллар США', UZS: 'Узбекский сум', VND: 'Вьетнамский донг', ZAR: 'Южноафриканский рэнд'
       };
       const SYMBOLS = {
-        AED: 'د.إ', AUD: 'A$', CAD: 'C$', CHF: 'Fr', CNY: '¥', EUR: '€', GBP: '£', INR: '₹',
+        AED: 'د.إ', AUD: 'A$', CAD: 'C$', CHF: 'Fr', CNY: '¥', EUR: '€', GBP: '£', INR: '₹', MVR: 'ރ',
         JPY: '¥', KRW: '₩', RUB: '₽', TRY: '₺', USD: '$'
       };
       const $ = id => document.getElementById(id);
@@ -455,13 +462,29 @@
         };
       }
 
+      function addMissingDefaultCurrencies(currencies) {
+        const rubRate = currencies.find(item => item.code === 'RUB')?.rate || '1';
+        for (const item of DEFAULTS.currencies) {
+          if (!['EUR', 'MVR'].includes(item.code) || currencies.some(existing => existing.code === item.code)) continue;
+          const rate = scaledToDecimal(toScaled(item.rate) * toScaled(rubRate) / SCALE);
+          currencies.push({ ...item, rate, quote: rate, direction: 'currency-to-base' });
+        }
+        return currencies;
+      }
+
       function readState() {
         try {
           const current = localStorage.getItem(STORAGE_KEY);
-          const stored = JSON.parse(current || localStorage.getItem(LEGACY_STORAGE_KEY));
+          const previous = localStorage.getItem(PREVIOUS_STORAGE_KEY);
+          const stored = JSON.parse(current || previous || localStorage.getItem(LEGACY_STORAGE_KEY));
           if (!stored || !Array.isArray(stored.currencies)) return structuredClone(DEFAULTS);
-          if (stored.version === 1) return migrateLegacyState(stored);
-          if (stored.version !== 2) return structuredClone(DEFAULTS);
+          if (stored.version === 1) {
+            const migrated = migrateLegacyState(stored);
+            migrated.version = 3;
+            migrated.currencies = addMissingDefaultCurrencies(migrated.currencies);
+            return migrated;
+          }
+          if (stored.version !== 2 && stored.version !== 3) return structuredClone(DEFAULTS);
           const currencies = stored.currencies
             .filter(item => item && /^[A-Z]{3}$/.test(item.code) && cleanDecimal(item.rate) && toScaled(item.rate) > 0n)
             .map(item => ({
@@ -485,7 +508,9 @@
             ? stored.expandedPath.slice(0, 2).map(cleanDecimal).filter(Boolean)
             : [];
           return {
-            ...DEFAULTS, ...stored, currencies, base,
+            ...DEFAULTS, ...stored, version: 3,
+            currencies: stored.version === 2 ? addMissingDefaultCurrencies(currencies) : currencies,
+            base,
             active: currencies.some(item => item.code === stored.active) && stored.active !== base ? stored.active : currencies.find(item => item.code !== base).code,
             expandedPath,
             selectedAmount: cleanDecimal(stored.selectedAmount),
@@ -505,6 +530,7 @@
       function persist() {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          localStorage.removeItem(PREVIOUS_STORAGE_KEY);
           localStorage.removeItem(LEGACY_STORAGE_KEY);
         }
         catch (_) { showToast('Не удалось сохранить настройки в этом браузере'); }
@@ -583,7 +609,7 @@
         const rowClass = `conversion-row${depth ? ' nested-row' : ''}${expanded ? ' is-expanded' : ''}${editing ? ' is-selected' : ''}`;
         const amountMarkup = editing
           ? `<input class="amount-input" id="selected-amount" aria-label="Редактировать сумму в ${escapeHTML(source)}" inputmode="decimal" autocomplete="off" value="${escapeHTML(displayedValue)}">`
-          : `<span>${formatSourceValue(value, depth)}</span><span class="expand-chevron" aria-hidden="true">${expanded ? '⌃' : '⌄'}</span>`;
+          : `<span class="source-value">${formatSourceValue(value, depth)}</span><span class="expand-chevron" aria-hidden="true">${expanded ? '⌃' : '⌄'}</span>`;
         const row = editing
           ? `<div class="${rowClass}" style="--depth:${depth}" aria-current="true"><span class="row-source">${amountMarkup}</span><span class="target-value">${formatAmount(result, target)}</span></div>`
           : `<button class="${rowClass}" style="--depth:${depth}" type="button" data-expand="${escapeHTML(value)}" data-depth="${depth}" aria-expanded="${expanded}">
@@ -607,6 +633,7 @@
         els.rangeLabel.textContent = `Масштаб · ${levels[state.rangeLevel]}`;
         $('range-down').disabled = state.rangeLevel === 0;
         $('range-up').disabled = state.rangeLevel === 2;
+        $('collapse-all').hidden = state.expandedPath.length === 0;
 
         els.switcher.innerHTML = state.currencies
           .filter(item => item.code !== state.base)
@@ -887,6 +914,14 @@
       });
       $('range-down').addEventListener('click', () => adjustRange(-1));
       $('range-up').addEventListener('click', () => adjustRange(1));
+      $('collapse-all').addEventListener('click', () => {
+        if (!state.expandedPath.length) return;
+        state.expandedPath = [];
+        state.selectedAmount = null;
+        state.editedAmount = null;
+        persist();
+        renderHome();
+      });
       $('theme-button').addEventListener('click', () => setTheme(state.theme === 'dark' ? 'light' : 'dark'));
       $('settings-button').addEventListener('click', openSettings);
       $('close-settings').addEventListener('click', closeSettings);
