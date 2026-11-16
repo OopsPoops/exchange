@@ -78,6 +78,18 @@
     .quiet-button { min-height: 42px; padding: 0 15px; border-radius: 14px; font-size: 13px; font-weight: 620; }
     .icon-button:hover, .quiet-button:hover { border-color: var(--accent); }
     .icon-button:active, .quiet-button:active { transform: scale(.96); }
+    .theme-switch {
+      display: flex; align-items: center; width: 54px; height: 32px; padding: 3px;
+      border: 0; border-radius: 999px; background: var(--line); cursor: pointer;
+      transition: background .2s ease;
+    }
+    .theme-switch[aria-checked="true"] { background: var(--accent); }
+    .theme-switch-thumb {
+      display: flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+      border-radius: 50%; background: var(--surface); color: var(--ink); font-size: 14px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .18); transition: transform .2s ease;
+    }
+    .theme-switch[aria-checked="true"] .theme-switch-thumb { transform: translateX(22px); }
     .intro { margin: 0 0 23px; }
     .eyebrow { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
     .pair-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 9px; }
@@ -91,7 +103,7 @@
     .swap-button:hover { background: var(--accent-soft); transform: rotate(180deg); }
     .rate-note { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
     .currency-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 17px; }
-    .currency-switcher { display: flex; flex: 1; min-width: 0; gap: 12px; overflow-x: auto; margin: 0; padding: 2px 5px 7px; scrollbar-width: none; }
+    .currency-switcher { display: flex; flex: 1; min-width: 0; gap: 20px; overflow-x: auto; margin: 0; padding: 2px 5px 7px; scrollbar-width: none; }
     .currency-switcher::-webkit-scrollbar { display: none; }
     .currency-actions { display: flex; flex: none; align-items: center; gap: 6px; }
     .currency-chip {
@@ -182,6 +194,15 @@
     .currency-identity { display: flex; align-items: center; gap: 9px; min-width: 0; }
     .currency-identity strong { font-size: 14px; }
     .currency-identity span { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .currency-manage-actions { display: flex; flex: none; align-items: center; gap: 8px; }
+    .currency-order-actions { display: flex; align-items: center; gap: 4px; }
+    .order-button {
+      width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 9px;
+      background: var(--surface); color: var(--muted); cursor: pointer; font-size: 14px;
+    }
+    .order-button:hover { border-color: var(--accent); color: var(--accent-strong); }
+    .order-button:disabled { opacity: .4; cursor: default; }
+    .order-button:disabled:hover { border-color: var(--line); color: var(--muted); }
     .base-badge { padding: 5px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-strong); font-size: 10px !important; font-weight: 700; }
     .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
     .field { display: grid; gap: 6px; min-width: 0; color: var(--muted); font-size: 11px; }
@@ -226,7 +247,9 @@
     <header class="topbar">
       <h1 class="brand">exchange</h1>
       <div class="top-actions">
-        <button id="theme-button" class="icon-button" type="button" aria-label="Сменить тему" title="Сменить тему">☾</button>
+        <button id="theme-button" class="theme-switch" type="button" role="switch" aria-label="Тёмная тема" aria-checked="false" title="Тёмная тема">
+          <span id="theme-icon" class="theme-switch-thumb" aria-hidden="true">☀</span>
+        </button>
         <button id="settings-button" class="quiet-button" type="button"><span aria-hidden="true">⚙</span> Настройки</button>
       </div>
     </header>
@@ -364,7 +387,7 @@
         rateValue: $('rate-value'), overlay: $('settings-overlay'),
         baseSelect: $('base-currency'), currencies: $('currency-settings'), addForm: $('add-currency-form'),
         newQuoteLabel: $('new-quote-label'), newQuotePrefix: $('new-quote-prefix'), newQuoteSuffix: $('new-quote-suffix'),
-        themeButton: $('theme-button'), toast: $('toast')
+        themeButton: $('theme-button'), themeIcon: $('theme-icon'), toast: $('toast')
       };
 
       function escapeHTML(value) {
@@ -691,7 +714,7 @@
         els.baseSelect.innerHTML = state.currencies.map(item =>
           `<option value="${escapeHTML(item.code)}" ${item.code === state.base ? 'selected' : ''}>${escapeHTML(item.code)} — ${escapeHTML(item.name)}</option>`
         ).join('');
-        els.currencies.innerHTML = state.currencies.map(item => {
+        els.currencies.innerHTML = state.currencies.map((item, index) => {
           const isBase = item.code === state.base;
           const direction = item.direction;
           const label = direction === 'base-to-currency'
@@ -701,7 +724,13 @@
           return `<div class="managed-currency" data-code="${escapeHTML(item.code)}">
             <div class="currency-edit-head">
               <div class="currency-identity"><strong>${escapeHTML(item.code)}</strong><span>${escapeHTML(item.name)}</span></div>
-              ${isBase ? '<span class="base-badge">основная</span>' : `<button class="remove-button" type="button" data-remove="${escapeHTML(item.code)}">Удалить</button>`}
+              <div class="currency-manage-actions">
+                <div class="currency-order-actions">
+                  <button class="order-button" type="button" data-move="-1" data-code="${escapeHTML(item.code)}" aria-label="Переместить ${escapeHTML(item.code)} выше" title="Переместить выше" ${index === 0 ? 'disabled' : ''}>↑</button>
+                  <button class="order-button" type="button" data-move="1" data-code="${escapeHTML(item.code)}" aria-label="Переместить ${escapeHTML(item.code)} ниже" title="Переместить ниже" ${index === state.currencies.length - 1 ? 'disabled' : ''}>↓</button>
+                </div>
+                ${isBase ? '<span class="base-badge">основная</span>' : `<button class="remove-button" type="button" data-remove="${escapeHTML(item.code)}">Удалить</button>`}
+              </div>
             </div>
             <div class="edit-grid">
               <label class="field">Код<input data-field="code" value="${escapeHTML(item.code)}" maxlength="3" ${isBase ? 'disabled' : ''}></label>
@@ -735,6 +764,9 @@
         });
         els.currencies.querySelectorAll('[data-remove]').forEach(button => {
           button.addEventListener('click', () => removeCurrency(button.dataset.remove));
+        });
+        els.currencies.querySelectorAll('[data-move]').forEach(button => {
+          button.addEventListener('click', () => moveCurrency(button.dataset.code, Number(button.dataset.move)));
         });
       }
 
@@ -820,6 +852,17 @@
         renderSettings();
       }
 
+      function moveCurrency(code, offset) {
+        const index = state.currencies.findIndex(item => item.code === code);
+        const nextIndex = index + offset;
+        if (index < 0 || ![-1, 1].includes(offset) || nextIndex < 0 || nextIndex >= state.currencies.length) return;
+        const [item] = state.currencies.splice(index, 1);
+        state.currencies.splice(nextIndex, 0, item);
+        persist();
+        renderHome();
+        renderSettings();
+      }
+
       function addCurrency(event) {
         event.preventDefault();
         const form = els.addForm;
@@ -873,8 +916,15 @@
         state.theme = theme;
         document.documentElement.dataset.theme = theme;
         $('theme-color').content = theme === 'dark' ? '#181923' : '#f7f6f2';
-        els.themeButton.textContent = theme === 'dark' ? '☀' : '☾';
+        updateThemeSwitch();
         persist();
+      }
+
+      function updateThemeSwitch() {
+        const isDark = state.theme === 'dark';
+        els.themeButton.setAttribute('aria-checked', String(isDark));
+        els.themeButton.title = `Тёмная тема: ${isDark ? 'включена' : 'выключена'}`;
+        els.themeIcon.textContent = isDark ? '☾' : '☀';
       }
 
       function openSettings() {
@@ -946,7 +996,7 @@
 
       document.documentElement.dataset.theme = state.theme;
       $('theme-color').content = state.theme === 'dark' ? '#181923' : '#f7f6f2';
-      els.themeButton.textContent = state.theme === 'dark' ? '☀' : '☾';
+      updateThemeSwitch();
       persist();
       renderHome();
     })();
