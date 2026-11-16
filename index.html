@@ -1,1 +1,415 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Конвертер валют в стиле Elk: конвертация на лету, офлайн-режим, 150+ валют">
+<title>Конвертер валют</title>
+<script>
+  /* тема до первой отрисовки, чтобы не было мигания */
+  try{
+    const t=JSON.parse(localStorage.getItem('ew.theme'))||
+      (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+    document.documentElement.dataset.theme=t;
+  }catch(e){}
+</script>
+<style>
+:root{
+  --bg:#f2f4f8; --card:#ffffff; --text:#0f1420; --muted:#7a8290; --border:#e3e7ee;
+  --accent:#2f6fed; --accent-soft:#e8f0fe; --danger:#e5484d;
+  --shadow:0 1px 3px rgba(15,20,32,.08),0 8px 24px rgba(15,20,32,.06);
+}
+html[data-theme="dark"]{
+  --bg:#0f1420; --card:#171e2c; --text:#eef1f7; --muted:#8b93a5; --border:#232c3e;
+  --accent:#6ea8fe; --accent-soft:#1d2a45; --danger:#ff6369;
+  --shadow:0 1px 3px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased;
+}
+.app{max-width:520px;margin:0 auto;padding:16px 16px 16px;}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 4px 16px}
+h1{font-size:22px;margin:0;letter-spacing:-.3px}
+#updated{font-size:12px;color:var(--muted);margin-top:3px}
+#updated.err{color:var(--danger)}
+.hdr-actions{display:flex;gap:8px}
+.icon-btn{width:38px;height:38px;border-radius:12px;border:1px solid var(--border);background:var(--card);
+  color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow);transition:transform .1s}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn.spin{animation:spin .8s linear infinite;pointer-events:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+#rows{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);
+  border-radius:16px;padding:10px 12px;box-shadow:var(--shadow)}
+.row.dragging{opacity:.35}
+.handle{cursor:grab;color:var(--muted);user-select:none;font-size:15px;padding:4px 2px}
+.cur{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.flag{font-size:26px;line-height:1}
+.meta{min-width:0}
+.code{font-weight:700;font-size:15px}
+.name{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:118px}
+.amt{flex:1.2;min-width:0;border:none;outline:none;background:transparent;color:var(--text);font-size:20px;
+  font-weight:600;text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:6px 6px;border-radius:8px}
+.amt:focus{background:var(--accent-soft)}
+.del{border:none;background:transparent;color:var(--muted);font-size:17px;width:28px;height:28px;
+  border-radius:8px;cursor:pointer;flex:none}
+.del:hover{color:var(--danger);background:var(--accent-soft)}
+.del[disabled]{opacity:.25;pointer-events:none}
+.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));width:56px;height:56px;
+  border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:28px;cursor:pointer;
+  box-shadow:0 6px 20px rgba(47,111,237,.45);display:flex;align-items:center;justify-content:center;transition:transform .1s}
+.fab:active{transform:scale(.92)}
+.overlay{position:fixed;inset:0;background:rgba(10,14,22,.5);backdrop-filter:blur(2px);
+  display:flex;align-items:flex-end;justify-content:center;z-index:50}
+.hidden{display:none}
+.sheet{background:var(--card);width:100%;max-width:520px;border-radius:20px 20px 0 0;max-height:80vh;
+  display:flex;flex-direction:column;padding:14px 14px calc(14px + env(safe-area-inset-bottom))}
+@media(min-width:600px){.overlay{align-items:center}.sheet{border-radius:20px}}
+.sheet-head{display:flex;gap:8px;margin-bottom:10px}
+#search{flex:1;font-size:16px;padding:10px 14px;border-radius:12px;border:1px solid var(--border);
+  background:var(--bg);color:var(--text);outline:none}
+#search:focus{border-color:var(--accent)}
+#curList{overflow-y:auto}
+.cur-item{display:flex;align-items:center;gap:12px;padding:11px 8px;border-radius:12px;cursor:pointer;
+  border:none;background:transparent;color:var(--text);text-align:left;font-family:inherit;width:100%;font-size:15px}
+.cur-item:hover{background:var(--accent-soft)}
+.cur-item .flag{font-size:22px}
+.cur-item .code{font-weight:700;width:48px;flex:none}
+.cur-item .name{flex:1;font-size:13px;color:var(--muted);max-width:none;white-space:normal}
+.cur-item .tick{color:var(--accent);font-weight:700}
+.empty{padding:40px 10px;text-align:center;color:var(--muted);font-size:14px}
+footer{margin-top:18px;text-align:center;font-size:11px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Конвертер валют</h1>
+      <div id="updated">Загрузка…</div>
+    </div>
+    <div class="hdr-actions">
+      <button id="refreshBtn" class="icon-btn" type="button" title="Обновить курсы">⟳</button>
+      <button id="themeBtn" class="icon-btn" type="button" title="Сменить тему">🌙</button>
+    </div>
+  </header>
+  <div id="rows"></div>
+  <footer>Курсы: open.er-api.com · офлайн-режим на сохранённых данных</footer>
+</div>
 
+<button id="fab" class="fab" type="button" title="Добавить валюту">+</button>
+
+<div id="overlay" class="overlay hidden">
+  <div class="sheet">
+    <div class="sheet-head">
+      <input id="search" type="text" placeholder="Поиск валюты (код или название)…" autocomplete="off">
+      <button id="closeModal" class="icon-btn" type="button">✕</button>
+    </div>
+    <div id="curList"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= Справочник валют: код → название ================= */
+const CURRENCIES={
+  USD:'Доллар США',EUR:'Евро',GBP:'Фунт стерлингов',JPY:'Японская иена',CNY:'Китайский юань',
+  RUB:'Российский рубль',CHF:'Швейцарский франк',AUD:'Австралийский доллар',CAD:'Канадский доллар',
+  NZD:'Новозеландский доллар',HKD:'Гонконгский доллар',SGD:'Сингапурский доллар',KRW:'Южнокорейская вона',
+  INR:'Индийская рупия',MXN:'Мексиканское песо',BRL:'Бразильский реал',ZAR:'Южноафриканский рэнд',
+  TRY:'Турецкая лира',SEK:'Шведская крона',NOK:'Норвежская крона',DKK:'Датская крона',PLN:'Польский злотый',
+  CZK:'Чешская крона',HUF:'Венгерский форинт',RON:'Румынский лей',BGN:'Болгарский лев',ISK:'Исландская крона',
+  UAH:'Украинская гривна',KZT:'Казахстанский тенге',BYN:'Белорусский рубль',UZS:'Узбекский сум',
+  KGS:'Киргизский сом',TJS:'Таджикский сомони',TMT:'Туркменский манат',AZN:'Азербайджанский манат',
+  AMD:'Армянский драм',GEL:'Грузинский лари',MDL:'Молдавский лей',RSD:'Сербский динар',MKD:'Македонский денар',
+  BAM:'Конвертируемая марка',ALL:'Албанский лек',HRK:'Хорватская куна',THB:'Тайский бат',VND:'Вьетнамский донг',
+  IDR:'Индонезийская рупия',MYR:'Малайзийский ринггит',PHP:'Филиппинское песо',TWD:'Новый тайваньский доллар',
+  AED:'Дирхам ОАЭ',SAR:'Саудовский риял',QAR:'Катарский риал',KWD:'Кувейтский динар',BHD:'Бахрейнский динар',
+  OMR:'Оманский риал',JOD:'Иорданский динар',ILS:'Израильский шекель',EGP:'Египетский фунт',
+  MAD:'Марокканский дирхам',TND:'Тунисский динар',DZD:'Алжирский динар',LYD:'Ливийский динар',
+  NGN:'Нигерийская найра',KES:'Кенийский шиллинг',GHS:'Ганский седи',ETB:'Эфиопский быр',
+  TZS:'Танзанийский шиллинг',UGX:'Угандийский шиллинг',XOF:'Франк КФА BCEAO',XAF:'Франк КФА BEAC',
+  XPF:'Франк КФП',ARS:'Аргентинское песо',CLP:'Чилийское песо',COP:'Колумбийское песо',PEN:'Перуанский соль',
+  BOB:'Боливиано',PYG:'Парагвайский гуарани',UYU:'Уругвайское песо',VES:'Венесуэльский боливар',
+  BSD:'Багамский доллар',BBD:'Барбадосский доллар',BMD:'Бермудский доллар',KYD:'Доллар Каймановых Островов',
+  JMD:'Ямайский доллар',TTD:'Доллар Тринидада и Тобаго',XCD:'Восточнокарибский доллар',DOP:'Доминиканское песо',
+  CRC:'Костариканский колон',GTQ:'Гватемальский кетсаль',HNL:'Гондурасская лемпира',NIO:'Никарагуанская кордоба',
+  PAB:'Панамское бальбоа',BZD:'Белизский доллар',SRD:'Суринамский доллар',FKP:'Фунт Фолклендских островов',
+  GIP:'Гибралтарский фунт',FJD:'Доллар Фиджи',PGK:'Кина Папуа — Новой Гвинеи',WST:'Самоанская тала',
+  TOP:'Тонганская паанга',VUV:'Вату Вануату',SBD:'Доллар Соломоновых Островов',BND:'Брунейский доллар',
+  MOP:'Патака Макао',MMK:'Мьянманский кьят',KHR:'Камбоджийский риель',LAK:'Лаосский кип',MNT:'Монгольский тугрик',
+  NPR:'Непальская рупия',LKR:'Шри-ланкийская рупия',PKR:'Пакистанская рупия',BDT:'Бангладешская така',
+  AFN:'Афгани',IRR:'Иранский риал',IQD:'Иракский динар',SYP:'Сирийский фунт',LBP:'Ливанский фунт',
+  YER:'Йеменский риал',SDG:'Суданский фунт',SSP:'Южносуданский фунт',SOS:'Сомалийский шиллинг',
+  DJF:'Франк Джибути',ERN:'Накфа',MUR:'Маврикийская рупия',SCR:'Сейшельская рупия',MVR:'Мальдивская руфия',
+  MGA:'Малагасийский ариари',MWK:'Малавийская квача',ZMW:'Замбийская квача',ZWL:'Зимбабвийский доллар',
+  BWP:'Ботсванская пула',NAD:'Доллар Намибии',LSL:'Лоти',SZL:'Лилангени',AOA:'Кванза',MZN:'Мозамбикский метикал',
+  RWF:'Франк Руанды',BIF:'Франк Бурунди',CDF:'Франк ДР Конго',GNF:'Гвинейский франк',SLL:'Леоне',
+  GMD:'Даласи',CVE:'Эскудо Кабо-Верде',STN:'Добра',MRU:'Угия',KMF:'Франк Комор',BTN:'Нгултрум',
+  AWG:'Флорин Арубы',ANG:'Гульден Нидерландских Антилл',CUP:'Кубинское песо',KPW:'Северокорейская вона',
+  SHP:'Фунт Святой Елены'
+};
+const FLAG_OVERRIDES={EUR:'🇪🇺',XAF:'🌍',XOF:'🌍',XPF:'🌍',XCD:'🌍',ANG:'🇨🇼'};
+const BAD_CC=new Set(['AN','BU','CS','DD','FX','YU','ZR']);
+
+function flagOf(code){
+  if(FLAG_OVERRIDES[code]) return FLAG_OVERRIDES[code];
+  const cc=code.slice(0,2);
+  if(code[0]==='X'||BAD_CC.has(cc)) return '🌍';
+  return String.fromCodePoint(...[...cc].map(ch=>0x1F1E6+ch.charCodeAt(0)-65));
+}
+
+/* ================= Состояние и localStorage ================= */
+const K_RATES='ew.rates',K_CUR='ew.currencies',K_THEME='ew.theme';
+const LS={
+  get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+};
+let rates={},ratesUpdated=0,lastEdit=null,dragRow=null;
+let currencies=LS.get(K_CUR,['USD','EUR','RUB','GBP','JPY']);
+
+const $=id=>document.getElementById(id);
+const rowsEl=$('rows'),statusEl=$('updated'),refreshBtn=$('refreshBtn'),themeBtn=$('themeBtn'),
+      fab=$('fab'),overlay=$('overlay'),searchEl=$('search'),curListEl=$('curList');
+
+/* ================= Форматирование и парсинг ================= */
+function decimalsFor(code){const r=rates[code]||1;return r>=100?0:r>=1?2:4;}
+function fmtVal(v,code){
+  const d=decimalsFor(code);
+  return v.toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+function parseNum(s){
+  if(typeof s!=='string')return NaN;
+  s=s.replace(/[\s\u00A0\u202F'`]/g,'');
+  if(!s)return NaN;
+  if(s.includes('.')&&s.includes(','))s=s.replace(/,/g,'');   // запятая — разделитель тысяч
+  else s=s.replace(/,/g,'.');                                  // запятая — десятичный разделитель
+  if(!/^\d*(?:\.\d+)?$/.test(s)||s==='.')return NaN;
+  return parseFloat(s);
+}
+function plural(n,f){const a=n%10,b=n%100;
+  if(a===1&&b!==11)return f[0];
+  if(a>=2&&a<=4&&(b<10||b>=20))return f[1];
+  return f[2];}
+function relTime(ts){
+  const m=Math.floor((Date.now()-ts)/60000);
+  if(m<1)return 'только что';
+  if(m<60)return m+' '+plural(m,['минуту','минуты','минут'])+' назад';
+  const h=Math.floor(m/60);
+  if(h<24)return h+' '+plural(h,['час','часа','часов'])+' назад';
+  const d=Math.floor(h/24);
+  if(d<7)return d+' '+plural(d,['день','дня','дней'])+' назад';
+  return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short'}).format(ts);
+}
+function setStatus(text,isErr){statusEl.textContent=text;statusEl.classList.toggle('err',!!isErr);}
+
+/* ================= Загрузка курсов ================= */
+function getJSON(url){
+  const c=new AbortController(),t=setTimeout(()=>c.abort(),9000);
+  return fetch(url,{signal:c.signal})
+    .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .finally(()=>clearTimeout(t));
+}
+async function fetchRates(){
+  refreshBtn.classList.add('spin');
+  try{
+    const d=await getJSON('https://open.er-api.com/v6/latest/USD');
+    if(d.result!=='success'||!d.rates)throw new Error('bad payload');
+    saveRates(d.rates,(d.time_last_update_unix||Math.floor(Date.now()/1000))*1000);
+  }catch(e){
+    try{ // запасной источник, если основной недоступен
+      const d=await getJSON('https://api.frankfurter.app/latest?from=USD');
+      if(!d.rates)throw new Error('bad payload');
+      d.rates.USD=1;
+      saveRates(d.rates,Date.parse(d.date)||Date.now());
+    }catch(e2){
+      if(!Object.keys(rates).length)
+        setStatus('Не удалось загрузить курсы. Проверьте подключение и нажмите ⟳.',true);
+      else
+        setStatus('Нет сети — показаны сохранённые курсы от '+relTime(ratesUpdated),true);
+      refreshBtn.classList.remove('spin');
+      return;
+    }
+  }
+  refreshBtn.classList.remove('spin');
+  recalc();
+}
+function saveRates(r,ts){
+  rates=r;ratesUpdated=ts;
+  LS.set(K_RATES,{rates:r,updated:ts});
+  setStatus('Курсы обновлены '+relTime(ts));
+}
+
+/* ================= Строки валют ================= */
+function inputOf(code){return rowsEl.querySelector('.row[data-code="'+code+'"] .amt');}
+
+function rowEl(code){
+  const row=document.createElement('div');
+  row.className='row';row.dataset.code=code;
+
+  const handle=document.createElement('div');
+  handle.className='handle';handle.title='Перетащите, чтобы изменить порядок';handle.textContent='⣿';
+  handle.draggable=true;
+
+  const cur=document.createElement('div');cur.className='cur';
+  const flag=document.createElement('div');flag.className='flag';flag.textContent=flagOf(code);
+  const meta=document.createElement('div');meta.className='meta';
+  const codeEl=document.createElement('div');codeEl.className='code';codeEl.textContent=code;
+  const nameEl=document.createElement('div');nameEl.className='name';nameEl.textContent=CURRENCIES[code]||code;
+  meta.append(codeEl,nameEl);cur.append(flag,meta);
+
+  const inp=document.createElement('input');
+  inp.className='amt';inp.type='text';inp.inputMode='decimal';inp.autocomplete='off';inp.spellcheck=false;
+  inp.addEventListener('input',()=>{const v=parseNum(inp.value);applyFrom(code,Number.isFinite(v)?v:null);});
+  inp.addEventListener('focus',()=>inp.select());
+  inp.addEventListener('blur',()=>{const v=parseNum(inp.value);inp.value=Number.isFinite(v)?fmtVal(v,code):'';});
+
+  const del=document.createElement('button');
+  del.className='del';del.type='button';del.title='Убрать валюту';del.textContent='✕';
+  del.addEventListener('click',()=>{
+    if(currencies.length<=1)return;
+    currencies=currencies.filter(c=>c!==code);
+    LS.set(K_CUR,currencies);render();recalc();
+  });
+
+  row.append(handle,cur,inp,del);
+  row.addEventListener('dragstart',e=>{
+    dragRow=row;row.classList.add('dragging');e.dataTransfer.effectAllowed='move';
+    try{e.dataTransfer.setData('text/plain',code);}catch(_){}
+  });
+  row.addEventListener('dragend',()=>{
+    row.classList.remove('dragging');dragRow=null;
+    currencies=[...rowsEl.querySelectorAll('.row')].map(r=>r.dataset.code);
+    LS.set(K_CUR,currencies);
+  });
+  return row;
+}
+
+function render(){
+  if(Object.keys(rates).length)
+    currencies=currencies.filter(c=>rates[c]!==undefined||CURRENCIES[c]);
+  LS.set(K_CUR,currencies);
+  rowsEl.innerHTML='';
+  if(!currencies.length){
+    rowsEl.innerHTML='<div class="empty">Валюты не выбраны. Нажмите «+», чтобы добавить.</div>';
+    return;
+  }
+  currencies.forEach(code=>rowsEl.appendChild(rowEl(code)));
+  const dis=currencies.length<=1;
+  rowsEl.querySelectorAll('.del').forEach(b=>b.disabled=dis);
+}
+
+/* пересчёт всех полей относительно поля-источника */
+function applyFrom(src,val){
+  lastEdit=(val===null||val===undefined)?null:{code:src,val};
+  rowsEl.querySelectorAll('.row').forEach(row=>{
+    const code=row.dataset.code;
+    if(code===src)return;
+    const inp=row.querySelector('.amt');
+    inp.value=(val===null||val===undefined||!rates[src]||!rates[code])
+      ?'':fmtVal(val/rates[src]*rates[code],code);
+  });
+}
+
+/* пересчитать по последнему вводу либо от первой валюты (значение 1) */
+function recalc(){
+  if(lastEdit&&rates[lastEdit.code]!==undefined&&Number.isFinite(lastEdit.val)){
+    const srcInp=inputOf(lastEdit.code);
+    if(srcInp)srcInp.value=fmtVal(lastEdit.val,lastEdit.code);
+    applyFrom(lastEdit.code,lastEdit.val);
+    return;
+  }
+  const first=currencies.find(c=>rates[c]!==undefined)||currencies[0];
+  if(!first)return;
+  const inp=inputOf(first);
+  if(!inp)return;
+  let v=parseNum(inp.value);
+  if(!Number.isFinite(v)){v=1;inp.value=fmtVal(1,first);}
+  applyFrom(first,v);
+}
+
+/* ================= Drag & drop сортировка ================= */
+rowsEl.addEventListener('dragover',e=>{
+  if(!dragRow)return;
+  e.preventDefault();
+  const after=[...rowsEl.querySelectorAll('.row:not(.dragging)')].reduce((best,child)=>{
+    const box=child.getBoundingClientRect();
+    const off=e.clientY-box.top-box.height/2;
+    return(off<0&&off>best.off)?{off,el:child}:best;
+  },{off:-Infinity,el:null}).el;
+  if(after==null)rowsEl.appendChild(dragRow);else rowsEl.insertBefore(dragRow,after);
+});
+
+/* ================= Модалка выбора валют ================= */
+function openModal(){overlay.classList.remove('hidden');searchEl.value='';renderCurList('');setTimeout(()=>searchEl.focus(),50);}
+function closeModal(){overlay.classList.add('hidden');}
+function renderCurList(q){
+  q=(q||'').trim().toLowerCase();
+  const all=new Set([...Object.keys(CURRENCIES),...Object.keys(rates)]);
+  let items=[...all].map(c=>({code:c,name:CURRENCIES[c]||c}));
+  items.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+  if(q)items=items.filter(i=>i.name.toLowerCase().includes(q)||i.code.toLowerCase().includes(q));
+  curListEl.innerHTML='';
+  if(!items.length){curListEl.innerHTML='<div class="empty">Ничего не найдено</div>';return;}
+  items.forEach(i=>{
+    const b=document.createElement('button');
+    b.type='button';b.className='cur-item';
+    const f=document.createElement('span');f.className='flag';f.textContent=flagOf(i.code);
+    const c=document.createElement('span');c.className='code';c.textContent=i.code;
+    const n=document.createElement('span');n.className='name';n.textContent=i.name;
+    const t=document.createElement('span');t.className='tick';t.textContent=currencies.includes(i.code)?'✓':'';
+    b.append(f,c,n,t);
+    b.addEventListener('click',()=>toggleCurrency(i.code));
+    curListEl.appendChild(b);
+  });
+}
+function toggleCurrency(code){
+  if(currencies.includes(code)){
+    if(currencies.length<=1)return;
+    currencies=currencies.filter(c=>c!==code);
+  }else{
+    currencies.push(code);
+  }
+  LS.set(K_CUR,currencies);
+  render();recalc();
+  renderCurList(searchEl.value);
+}
+
+/* ================= Тема ================= */
+function applyTheme(t){
+  document.documentElement.dataset.theme=t;
+  themeBtn.textContent=t==='dark'?'☀️':'🌙';
+  LS.set(K_THEME,t);
+}
+themeBtn.addEventListener('click',()=>applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
+
+/* ================= События ================= */
+fab.addEventListener('click',openModal);
+ $('closeModal').addEventListener('click',closeModal);
+overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+searchEl.addEventListener('input',()=>renderCurList(searchEl.value));
+searchEl.addEventListener('keydown',e=>{if(e.key==='Enter'){const f=curListEl.querySelector('.cur-item');if(f)f.click();}});
+refreshBtn.addEventListener('click',()=>fetchRates());
+window.addEventListener('online',()=>fetchRates());
+
+/* ================= Старт ================= */
+const cached=LS.get(K_RATES,null);
+if(cached&&cached.rates&&cached.updated){
+  rates=cached.rates;ratesUpdated=cached.updated;
+  setStatus('Курсы от '+relTime(ratesUpdated));
+}
+render();
+recalc();
+if(navigator.onLine)fetchRates();
+else setStatus('Нет сети — при подключении курсы обновятся автоматически.',true);
+})();
+</script>
+</body>
+</html>
