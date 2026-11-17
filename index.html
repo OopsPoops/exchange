@@ -144,6 +144,7 @@
     .conversion-row.is-expanded { background: var(--accent-soft); }
     .conversion-row.nested-row { min-height: 58px; padding-left: calc(21px + var(--depth, 1) * 12px); background: var(--surface-soft); }
     .conversion-row.nested-row:hover { background: var(--accent-soft); }
+    .conversion-row.terminal-row { cursor: default; }
     .row-source { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; }
     .expand-chevron { position: absolute; right: 0; width: 15px; color: var(--muted); font-size: 15px; transition: transform .18s ease; }
     .is-expanded .expand-chevron { transform: rotate(180deg); color: var(--accent-strong); }
@@ -540,8 +541,9 @@
             else item.rate = scaledToDecimal(divideScaled(toScaled(item.rate), baseRate) || SCALE);
           });
           baseItem.rate = '1';
+          const rangeLevel = Number.isInteger(stored.rangeLevel) ? Math.min(2, Math.max(0, stored.rangeLevel)) : 0;
           const expandedPath = Array.isArray(stored.expandedPath)
-            ? stored.expandedPath.slice(0, 2).map(cleanDecimal).filter(Boolean)
+            ? stored.expandedPath.slice(0, rangeLevel + 2).map(cleanDecimal).filter(Boolean)
             : [];
           return {
             ...DEFAULTS, ...stored, version: 3,
@@ -549,7 +551,7 @@
             base,
             active: currencies.some(item => item.code === stored.active) && stored.active !== base ? stored.active : currencies.find(item => item.code !== base).code,
             expandedPath,
-            rangeLevel: Number.isInteger(stored.rangeLevel) ? Math.min(2, Math.max(0, stored.rangeLevel)) : 0,
+            rangeLevel,
             reversed: stored.reversed === true,
             theme: stored.theme === 'dark' ? 'dark' : 'light'
           };
@@ -626,7 +628,7 @@
 
       function formatSourceValue(value, depth) {
         const [whole, fraction = ''] = cleanDecimal(value).split('.');
-        const minimumFraction = depth > 0 && (state.rangeLevel === 0 || (state.rangeLevel === 1 && depth === 2)) ? 2 : 0;
+        const minimumFraction = depth > 0 && depth === state.rangeLevel + 1 ? 2 : 0;
         const decimals = fraction.replace(/0+$/, '').padEnd(minimumFraction, '0');
         const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');
         const symbol = currency(state.reversed ? state.base : state.active)?.symbol || '';
@@ -635,12 +637,18 @@
 
       function renderAmountRow(value, depth) {
         const expanded = state.expandedPath.length > depth && state.expandedPath[depth] === value;
+        const exponent = state.rangeLevel - depth - 1;
+        const canExpand = exponent >= -2;
         const source = state.reversed ? state.base : state.active;
         const target = state.reversed ? state.active : state.base;
         const result = convert(value, source, target);
         const rowClass = `conversion-row${depth ? ' nested-row' : ''}${expanded ? ' is-expanded' : ''}`;
+        const cells = `<span class="row-source"><span class="source-value">${formatSourceValue(value, depth)}</span>${canExpand ? `<span class="expand-chevron" aria-hidden="true">${expanded ? '⌃' : '⌄'}</span>` : ''}</span><span class="target-value">${formatAmount(result, target)}</span>`;
+        if (!canExpand) {
+          return `<div class="${rowClass} terminal-row" style="--depth:${depth}">${cells}</div>`;
+        }
         const row = `<button class="${rowClass}" style="--depth:${depth}" type="button" data-expand="${escapeHTML(value)}" data-depth="${depth}" aria-expanded="${expanded}">
-            <span class="row-source"><span class="source-value">${formatSourceValue(value, depth)}</span><span class="expand-chevron" aria-hidden="true">${expanded ? '⌃' : '⌄'}</span></span><span class="target-value">${formatAmount(result, target)}</span>
+            ${cells}
           </button>`;
         if (!expanded) return row;
         return row + childAmounts(value, state.rangeLevel, depth).map(child => renderAmountRow(child, depth + 1)).join('');
