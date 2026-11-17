@@ -131,8 +131,7 @@
       padding: 16px 21px 13px; color: var(--muted); font-size: 11px; font-weight: 700;
       letter-spacing: .07em; text-transform: uppercase;
     }
-    .table-head span:first-child { text-align: right; }
-    .table-head span:last-child { text-align: left; }
+    .table-head span { text-align: center; }
     .conversion-list { overscroll-behavior: contain; touch-action: pan-y; }
     .conversion-row {
       display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px;
@@ -146,17 +145,17 @@
     .conversion-row.is-expanded { background: var(--accent-soft); }
     .conversion-row.nested-row { min-height: 58px; padding-left: calc(21px + var(--depth, 1) * 12px); background: var(--surface-soft); }
     .conversion-row.nested-row:hover { background: var(--accent-soft); }
-    .row-source { display: flex; align-items: center; justify-content: flex-end; gap: 9px; min-width: 0; }
-    .expand-chevron { flex: none; width: 15px; color: var(--muted); font-size: 15px; transition: transform .18s ease; }
+    .row-source { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; }
+    .expand-chevron { position: absolute; right: 0; width: 15px; color: var(--muted); font-size: 15px; transition: transform .18s ease; }
     .is-expanded .expand-chevron { transform: rotate(180deg); color: var(--accent-strong); }
     .source-value, .target-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .source-value { text-align: right; font-size: clamp(18px, 4vw, 21px); font-weight: 590; letter-spacing: -.45px; }
-    .target-value { text-align: left; font-size: clamp(18px, 4vw, 21px); font-weight: 560; letter-spacing: -.4px; }
+    .source-value { text-align: center; font-size: clamp(18px, 4vw, 21px); font-weight: 590; letter-spacing: -.45px; }
+    .target-value { text-align: center; font-size: clamp(18px, 4vw, 21px); font-weight: 560; letter-spacing: -.4px; }
     .is-selected .source-value, .is-selected .target-value { color: var(--accent-strong); font-weight: 700; }
     .amount-input {
       display: block; width: 100%; min-width: 0; padding: 0; border: 0; border-radius: 5px;
       outline: none; background: transparent; color: var(--accent-strong); font-size: inherit;
-      font-weight: 720; letter-spacing: inherit; font-variant-numeric: tabular-nums;
+      font-weight: 720; letter-spacing: inherit; font-variant-numeric: tabular-nums; text-align: center;
     }
     .amount-input:focus { box-shadow: 0 1px 0 var(--accent); }
     @keyframes row-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
