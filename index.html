@@ -100,7 +100,7 @@
     .intro .eyebrow { grid-area: eyebrow; }
     .intro .pair-heading { grid-area: title; }
     .intro .rate-note { grid-area: rate; }
-    .intro .amount-converter { grid-area: calc; justify-self: end; }
+    .intro .amount-converter { grid-area: calc; justify-self: end; align-self: end; }
     .eyebrow { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
     .pair-heading { display: flex; align-items: center; margin-top: 9px; }
     .pair-heading-title { margin: 0; }
@@ -1103,6 +1103,12 @@
       $('add-currency-form').addEventListener('submit', addCurrency);
       $('add-currency-form').elements.direction.addEventListener('change', updateNewQuoteLabel);
       $('add-currency-form').elements.code.addEventListener('input', updateNewQuoteLabel);
+      document.addEventListener('pointerdown', event => {
+        const active = document.activeElement;
+        if (!active || !['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName)) return;
+        if (event.target === active || active.contains(event.target)) return;
+        active.blur();
+      });
       document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && !els.overlay.hidden) closeSettings();
         trapFocus(event);
