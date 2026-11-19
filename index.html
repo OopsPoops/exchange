@@ -92,18 +92,14 @@
     .theme-switch[aria-checked="true"] .theme-switch-thumb { transform: translateX(22px); }
     .theme-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
     .theme-setting-title { font-size: 14px; }
-    .intro {
-      display: grid; gap: 0 28px; align-items: center; margin: 0 0 23px;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      grid-template-areas: "eyebrow calc" "title calc" "rate calc";
-    }
-    .intro .eyebrow { grid-area: eyebrow; }
-    .intro .pair-heading { grid-area: title; }
-    .intro .rate-note { grid-area: rate; }
-    .intro .amount-converter { grid-area: calc; justify-self: end; align-self: start; margin-top: -4px; }
+    .intro { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; align-items: center; margin: 0 0 23px; }
+    .intro-line { margin: 0; min-width: 0; }
+    .intro-line .eyebrow { display: block; margin-bottom: 3px; }
+    .intro-line .pair-title { display: flex; width: fit-content; margin-bottom: 3px; }
+    .intro-line .rate-note { display: block; }
+    .intro .amount-converter { justify-self: end; }
     .eyebrow { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; line-height: 1; text-transform: uppercase; }
-    .pair-heading { display: flex; align-items: center; margin-top: -10px; }
-    .pair-heading-title { margin: 0; }
+    .rate-note { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.1; }
     .pair-title {
       display: inline-flex; align-items: baseline; gap: 10px; padding: 0; border: 0;
       border-radius: 4px; background: transparent; color: var(--ink); cursor: pointer;
@@ -113,7 +109,6 @@
     .pair-title span { color: var(--muted); font-weight: 420; }
     .pair-title:hover span { color: var(--accent-strong); }
     .pair-title:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
-    .rate-note { margin: -8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.05; }
     .currency-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 17px; }
     .currency-switcher { display: flex; flex: 1; min-width: 0; gap: 12px; overflow-x: auto; margin: 0; padding: 0 5px; scrollbar-width: none; }
     .currency-switcher::-webkit-scrollbar { display: none; }
@@ -259,12 +254,7 @@
       .table-head, .conversion-row { gap: 28px; }
       .settings-overlay { padding: max(18px, env(safe-area-inset-top)) 15px 15px; }
       .settings-card { padding: 14px; }
-      .intro {
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 0 12px;
-        grid-template-areas: "eyebrow eyebrow" "title calc" "rate rate";
-      }
-      .intro .amount-converter { justify-self: end; }
+      .intro { grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; }
       .pair-title { font-size: 21px; }
       .converter-input, .converter-result { padding: 0 8px; font-size: 16px; }
     }
@@ -286,14 +276,12 @@
       </div>
     </header>
 
-    <section class="intro" aria-labelledby="pair-heading-title">
-      <div class="eyebrow">Мой обмен</div>
-      <div class="pair-heading">
-        <h2 id="pair-heading-title" class="pair-heading-title">
-          <button id="pair-title" class="pair-title" type="button" aria-label="Поменять направление конвертации" title="Поменять направление конвертации">AED <span>→</span> RUB</button>
-        </h2>
+    <section class="intro" aria-labelledby="pair-title">
+      <div class="intro-line">
+        <span class="eyebrow">Мой обмен</span>
+        <button id="pair-title" class="pair-title" type="button" aria-label="Поменять направление конвертации" title="Поменять направление конвертации">AED <span>→</span> RUB</button>
+        <span id="rate-note" class="rate-note"></span>
       </div>
-      <p id="rate-note" class="rate-note"></p>
       <section class="amount-converter" aria-label="Конвертация произвольной суммы">
         <span id="converter-source-label" class="converter-label" hidden></span>
         <input id="converter-amount" class="converter-input" type="text" inputmode="decimal" autocomplete="off" value="1" aria-label="Сумма для конвертации">
