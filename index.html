@@ -94,7 +94,7 @@
     .theme-setting-title { font-size: 14px; }
     .intro { margin: 0 0 23px; }
     .eyebrow { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-    .pair-heading { display: flex; align-items: center; margin-top: 9px; }
+    .pair-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: nowrap; margin-top: 9px; }
     .pair-heading-title { margin: 0; }
     .pair-title {
       display: inline-flex; align-items: baseline; gap: 10px; padding: 0; border: 0;
@@ -161,18 +161,22 @@
     .range-button:disabled { opacity: .4; cursor: default; }
     .range-button:disabled:hover { background: var(--surface); }
     .amount-converter {
-      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px;
-      margin-top: 14px; padding: 16px 19px; border: 1px solid var(--line);
-      border-radius: 18px; background: var(--surface); box-shadow: var(--shadow);
+      display: flex; align-items: center; gap: 6px; flex: none;
+      padding: 6px 8px; border: 1px solid var(--line); border-radius: 14px;
+      background: var(--surface); box-shadow: var(--shadow);
     }
-    .converter-field { display: grid; gap: 8px; min-width: 0; }
-    .converter-label { color: var(--muted); font-size: 12px; }
+    .converter-arrow { color: var(--muted); font-size: 14px; }
     .converter-input, .converter-result {
-      width: 100%; min-width: 0; min-height: 46px; padding: 0 12px;
-      border: 1px solid var(--line); border-radius: 12px; background: var(--page);
-      color: var(--ink); font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums;
+      min-width: 0; min-height: 32px; padding: 0 8px;
+      border: 1px solid var(--line); border-radius: 9px; background: var(--page);
+      color: var(--ink); font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums;
     }
-    .converter-result { display: flex; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .converter-input { width: 64px; }
+    .converter-result {
+      min-width: 84px; display: flex; align-items: center;
+      border-color: transparent; background: transparent;
+      overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    }
     .settings-overlay {
       position: fixed; z-index: 20; inset: 0; overflow-y: auto; padding: 24px 16px;
       background: color-mix(in srgb, var(--page) 94%, transparent); backdrop-filter: blur(14px);
@@ -191,6 +195,9 @@
       background: var(--surface); color: var(--ink);
     }
     .settings-help { margin: 9px 1px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .ref-rate { margin: 7px 1px 0; color: var(--accent-strong); font-size: 11px; line-height: 1.4; }
+    .ref-rate.is-empty { color: var(--muted); }
+    .converter-input.invalid { border-color: var(--danger); }
     .managed-currency { padding: 15px 0; border-bottom: 1px solid var(--line); }
     .managed-currency:first-child { padding-top: 0; }
     .managed-currency:last-child { padding-bottom: 0; border-bottom: 0; }
@@ -208,7 +215,12 @@
     .order-button:disabled { opacity: .4; cursor: default; }
     .order-button:disabled:hover { border-color: var(--line); color: var(--muted); }
     .base-badge { padding: 5px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-strong); font-size: 10px !important; font-weight: 700; }
-    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .edit-grid { display: grid; gap: 9px; }
+    .edit-row { display: flex; gap: 8px; }
+    .edit-row .field { flex: 1; min-width: 0; }
+    .edit-row .code-field { flex: 0 1 70px; }
+    .edit-row .symbol-field { flex: 0 1 58px; }
+    .edit-row input { height: 34px; padding: 0 9px; font-size: 13px; }
     .field { display: grid; gap: 6px; min-width: 0; color: var(--muted); font-size: 11px; }
     .field input, .field select {
       width: 100%; min-width: 0; height: 42px; padding: 0 10px;
@@ -239,7 +251,9 @@
       .table-head, .conversion-row { gap: 28px; }
       .settings-overlay { padding: max(18px, env(safe-area-inset-top)) 15px 15px; }
       .settings-card { padding: 14px; }
-      .amount-converter { padding: 14px 15px; }
+      .pair-heading { flex-wrap: wrap; }
+      .amount-converter { width: 100%; }
+      .converter-input { flex: 1; width: auto; }
       .converter-input, .converter-result { padding: 0 9px; font-size: 16px; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -266,6 +280,13 @@
         <h2 id="pair-heading-title" class="pair-heading-title">
           <button id="pair-title" class="pair-title" type="button" aria-label="Поменять направление конвертации" title="Поменять направление конвертации">AED <span>→</span> RUB</button>
         </h2>
+        <section class="amount-converter" aria-label="Конвертация произвольной суммы">
+          <span id="converter-source-label" class="converter-label" hidden></span>
+          <input id="converter-amount" class="converter-input" type="text" inputmode="decimal" autocomplete="off" value="1" aria-label="Сумма для конвертации">
+          <span class="converter-arrow" aria-hidden="true">→</span>
+          <span id="converter-target-label" class="converter-label" hidden></span>
+          <output id="converter-result" class="converter-result" aria-live="polite"></output>
+        </section>
       </div>
       <p id="rate-note" class="rate-note"></p>
     </section>
@@ -284,16 +305,6 @@
       <div id="conversion-list" class="conversion-list"></div>
     </section>
 
-    <section class="amount-converter" aria-label="Конвертация произвольной суммы">
-      <label class="converter-field">
-        <span id="converter-source-label" class="converter-label"></span>
-        <input id="converter-amount" class="converter-input" type="text" inputmode="decimal" autocomplete="off" value="1" aria-label="Сумма для конвертации">
-      </label>
-      <div class="converter-field">
-        <span id="converter-target-label" class="converter-label"></span>
-        <output id="converter-result" class="converter-result" aria-live="polite"></output>
-      </div>
-    </section>
   </main>
 
   <section id="settings-overlay" class="settings-overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
@@ -322,21 +333,24 @@
       </section>
       <section class="settings-section">
         <h3 class="section-heading">Мои валюты</h3>
+        <p id="live-rates-note" class="settings-help" hidden></p>
         <div id="currency-settings" class="settings-card"></div>
       </section>
       <section class="settings-section">
         <h3 class="section-heading">Добавить валюту</h3>
         <form id="add-currency-form" class="settings-card add-card">
           <div class="edit-grid">
-            <label class="field">Код ISO
-              <input name="code" maxlength="3" placeholder="EUR" autocomplete="off" required>
-            </label>
-            <label class="field">Символ
-              <input name="symbol" maxlength="5" placeholder="€" autocomplete="off">
-            </label>
-            <label class="field">Название
-              <input name="name" placeholder="Евро" autocomplete="off" required>
-            </label>
+            <div class="edit-row">
+              <label class="field code-field">Код ISO
+                <input name="code" maxlength="3" placeholder="EUR" autocomplete="off" required>
+              </label>
+              <label class="field symbol-field">Символ
+                <input name="symbol" maxlength="5" placeholder="€" autocomplete="off">
+              </label>
+              <label class="field">Название
+                <input name="name" placeholder="Евро" autocomplete="off" required>
+              </label>
+            </div>
             <label class="field">Как задать курс
               <select name="direction">
                 <option value="currency-to-base">1 валюта = N основная</option>
@@ -347,6 +361,7 @@
           <label class="field quote-field"><span id="new-quote-label"></span>
             <span class="quote-input-wrap"><span id="new-quote-prefix"></span><input name="rate" inputmode="decimal" placeholder="95" required><span id="new-quote-suffix"></span></span>
           </label>
+          <p id="new-quote-ref" class="ref-rate" hidden></p>
           <button class="quiet-button" type="submit">Добавить валюту</button>
         </form>
       </section>
@@ -406,6 +421,7 @@
         converterAmount: $('converter-amount'), converterResult: $('converter-result'), overlay: $('settings-overlay'),
         baseSelect: $('base-currency'), currencies: $('currency-settings'), addForm: $('add-currency-form'),
         newQuoteLabel: $('new-quote-label'), newQuotePrefix: $('new-quote-prefix'), newQuoteSuffix: $('new-quote-suffix'),
+        newQuoteRef: $('new-quote-ref'), liveRatesNote: $('live-rates-note'),
         themeButton: $('theme-button'), themeIcon: $('theme-icon'), toast: $('toast')
       };
 
@@ -562,6 +578,7 @@
 
       let state = readState();
       let toastTimer;
+      let lastFocused = null;
 
       function persist() {
         try {
@@ -584,9 +601,13 @@
         const input = toScaled(amount);
         if (input === null) return null;
         if (source === target) return input;
+        const sourceItem = currency(source);
+        const targetItem = currency(target);
+        if (!sourceItem || !targetItem) return null;
         const base = state.base;
-        const sourceRate = source === base ? SCALE : toScaled(currency(source).rate);
-        const targetRate = target === base ? SCALE : toScaled(currency(target).rate);
+        const sourceRate = source === base ? SCALE : toScaled(sourceItem.rate);
+        const targetRate = target === base ? SCALE : toScaled(targetItem.rate);
+        if (sourceRate === null || targetRate === null) return null;
         if (source === base) return (input * SCALE + targetRate / 2n) / targetRate;
         if (target === base) return (input * sourceRate + SCALE / 2n) / SCALE;
         return (input * sourceRate + targetRate / 2n) / targetRate;
@@ -606,10 +627,8 @@
       }
 
       function quoteText(item) {
-        if (item.direction === 'base-to-currency') {
-          return `1 ${state.base} = ${item.quote} ${item.code}`;
-        }
-        return `1 ${item.code} = ${item.quote} ${state.base}`;
+        const formatted = formatLiveDecimal(Number(item.rate));
+        return `1 ${item.code} = ${formatted || item.rate} ${state.base}`;
       }
 
       function rootAmounts(level) {
@@ -627,7 +646,9 @@
       }
 
       function formatSourceValue(value, depth) {
-        const [whole, fraction = ''] = cleanDecimal(value).split('.');
+        const clean = cleanDecimal(value);
+        if (clean === null) return '—';
+        const [whole, fraction = ''] = clean.split('.');
         const minimumFraction = depth > 0 && depth === state.rangeLevel + 1 ? 2 : 0;
         const decimals = fraction.replace(/0+$/, '').padEnd(minimumFraction, '0');
         const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');
@@ -657,16 +678,20 @@
       function renderConverter(source, target) {
         els.converterSourceLabel.textContent = `Сумма · ${source}`;
         els.converterTargetLabel.textContent = `Результат · ${target}`;
+        const raw = els.converterAmount.value.trim();
         const amount = cleanDecimal(els.converterAmount.value);
+        els.converterAmount.classList.toggle('invalid', raw !== '' && amount === null);
         els.converterResult.textContent = amount ? formatAmount(convert(amount, source, target), target) : '—';
       }
 
       function renderHome() {
-        const active = currency(state.active);
+        const active = currency(state.active) || state.currencies.find(item => item.code !== state.base);
         if (!active) return;
+        if (state.active !== active.code) state.active = active.code;
         const source = state.reversed ? state.base : state.active;
         const target = state.reversed ? state.active : state.base;
         els.pairTitle.innerHTML = `${escapeHTML(source)} <span>→</span> ${escapeHTML(target)}`;
+        els.pairTitle.setAttribute('aria-pressed', String(state.reversed));
         els.sourceHeading.textContent = source;
         els.targetHeading.textContent = target;
         els.rateNote.textContent = quoteText(active);
@@ -729,15 +754,18 @@
               </div>
             </div>
             <div class="edit-grid">
-              <label class="field">Код<input data-field="code" value="${escapeHTML(item.code)}" maxlength="3" ${isBase ? 'disabled' : ''}></label>
-              <label class="field">Символ<input data-field="symbol" value="${escapeHTML(item.symbol)}" maxlength="6"></label>
-              <label class="field">Название<input data-field="name" value="${escapeHTML(item.name)}" maxlength="48"></label>
+              <div class="edit-row">
+                <label class="field code-field">Код<input data-field="code" value="${escapeHTML(item.code)}" maxlength="3" ${isBase ? 'disabled' : ''}></label>
+                <label class="field symbol-field">Символ<input data-field="symbol" value="${escapeHTML(item.symbol)}" maxlength="6"></label>
+                <label class="field">Название<input data-field="name" value="${escapeHTML(item.name)}" maxlength="48"></label>
+              </div>
               ${isBase ? '' : `<label class="field">Направление курса<select data-field="direction"><option value="currency-to-base" ${direction === 'currency-to-base' ? 'selected' : ''}>1 ${escapeHTML(item.code)} = N ${escapeHTML(state.base)}</option><option value="base-to-currency" ${direction === 'base-to-currency' ? 'selected' : ''}>1 ${escapeHTML(state.base)} = N ${escapeHTML(item.code)}</option></select></label>`}
             </div>
-            ${isBase ? '<p class="settings-help">1 основная валюта = 1 основная валюта</p>' : `<label class="field quote-field" data-quote-label>${escapeHTML(label)}<span class="quote-input-wrap"><span>1 ${escapeHTML(direction === 'base-to-currency' ? state.base : item.code)} =</span><input data-field="quote" inputmode="decimal" value="${escapeHTML(item.quote)}"><span>${escapeHTML(suffix)}</span></span></label>`}
+            ${isBase ? '<p class="settings-help">1 основная валюта = 1 основная валюта</p>' : `<label class="field quote-field" data-quote-label>${escapeHTML(label)}<span class="quote-input-wrap"><span>1 ${escapeHTML(direction === 'base-to-currency' ? state.base : item.code)} =</span><input data-field="quote" inputmode="decimal" value="${escapeHTML(item.quote)}"><span>${escapeHTML(suffix)}</span></span></label><p class="ref-rate" data-ref-rate="${escapeHTML(item.code)}" hidden></p>`}
           </div>`;
         }).join('');
         updateNewQuoteLabel();
+        updateRefRates();
         bindSettingsEvents();
       }
 
@@ -748,6 +776,7 @@
         els.newQuoteLabel.textContent = 'Курс';
         els.newQuotePrefix.textContent = direction === 'base-to-currency' ? `1 ${state.base} =` : `1 ${newCode} =`;
         els.newQuoteSuffix.textContent = direction === 'base-to-currency' ? newCode : state.base;
+        updateNewQuoteRef();
       }
 
       function bindSettingsEvents() {
@@ -906,6 +935,79 @@
         toastTimer = setTimeout(() => els.toast.classList.remove('visible'), 2300);
       }
 
+      const LIVE_RATES_URL = 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/rub.json';
+      let liveData = null;
+      let liveRatesPromise = null;
+
+      function loadLiveRates() {
+        if (liveRatesPromise) return liveRatesPromise;
+        liveRatesPromise = fetch(LIVE_RATES_URL)
+          .then(response => {
+            if (!response.ok) throw new Error('bad response');
+            return response.json();
+          })
+          .then(data => {
+            if (!data || typeof data.rub !== 'object' || !data.date) throw new Error('bad data');
+            liveData = { date: data.date, rates: data.rub };
+            return liveData;
+          })
+          .catch(() => null)
+          .finally(() => { liveRatesPromise = null; });
+        return liveRatesPromise;
+      }
+
+      function liveQuoteFor(code) {
+        if (!liveData || !liveData.rates) return null;
+        const codeKey = code.toLowerCase();
+        const codePerRub = codeKey === 'rub' ? 1 : Number(liveData.rates[codeKey]);
+        const baseKey = state.base.toLowerCase();
+        const basePerRub = baseKey === 'rub' ? 1 : Number(liveData.rates[baseKey]);
+        if (!(codePerRub > 0) || !(basePerRub > 0)) return null;
+        return { basePerCode: basePerRub / codePerRub, codePerBase: codePerRub / basePerRub };
+      }
+
+      function formatLiveDecimal(value) {
+        if (!Number.isFinite(value) || value <= 0) return null;
+        const text = value >= 100 ? value.toFixed(2) : value >= 1 ? value.toFixed(4) : value >= 0.01 ? value.toFixed(6) : value.toFixed(8);
+        return text.replace(/0+$/, '').replace(/\.$/, '');
+      }
+
+      function liveQuoteText(code) {
+        const quote = liveQuoteFor(code);
+        if (!quote) return null;
+        const formatted = formatLiveDecimal(quote.basePerCode);
+        if (!formatted) return null;
+        return `≈ сейчас: 1 ${code} = ${formatted} ${state.base}`;
+      }
+
+      function updateNewQuoteRef() {
+        const form = els.addForm;
+        const code = form.elements.code.value.trim().toUpperCase();
+        let text = null;
+        if (/^[A-Z]{3}$/.test(code) && code !== state.base) {
+          text = liveQuoteText(code)
+            || (liveData ? 'нет справочного курса для этой валюты' : null);
+        }
+        els.newQuoteRef.textContent = text || '';
+        els.newQuoteRef.hidden = !text;
+        els.newQuoteRef.classList.toggle('is-empty', Boolean(text) && !text.startsWith('≈'));
+      }
+
+      function updateRefRates() {
+        if (!liveData) return;
+        const [year, month, day] = String(liveData.date).split('-');
+        els.liveRatesNote.textContent = `Справочные курсы на ${day}.${month}.${year} — только для сравнения, ваши значения не меняются`;
+        els.liveRatesNote.hidden = false;
+        document.querySelectorAll('[data-ref-rate]').forEach(node => {
+          const item = currency(node.dataset.refRate);
+          const text = item ? liveQuoteText(item.code) || 'нет справочного курса' : '';
+          node.textContent = text;
+          node.hidden = !text;
+          node.classList.toggle('is-empty', !text.startsWith('≈'));
+        });
+        updateNewQuoteRef();
+      }
+
       function setTheme(theme) {
         state.theme = theme;
         document.documentElement.dataset.theme = theme;
@@ -922,7 +1024,9 @@
       }
 
       function openSettings() {
+        lastFocused = document.activeElement;
         renderSettings();
+        loadLiveRates().then(() => { if (!els.overlay.hidden) updateRefRates(); });
         els.overlay.hidden = false;
         document.body.style.overflow = 'hidden';
         $('close-settings').focus();
@@ -931,7 +1035,24 @@
       function closeSettings() {
         els.overlay.hidden = true;
         document.body.style.overflow = '';
-        $('settings-button').focus();
+        (lastFocused && lastFocused.isConnected ? lastFocused : $('settings-button')).focus();
+        lastFocused = null;
+      }
+
+      function trapFocus(event) {
+        if (event.key !== 'Tab' || els.overlay.hidden) return;
+        const focusable = els.overlay.querySelectorAll('button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])');
+        const items = Array.from(focusable).filter(item => !item.disabled && item.offsetParent !== null);
+        if (!items.length) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
       }
 
       function resetSettings() {
@@ -970,7 +1091,13 @@
       $('add-currency-form').addEventListener('submit', addCurrency);
       $('add-currency-form').elements.direction.addEventListener('change', updateNewQuoteLabel);
       $('add-currency-form').elements.code.addEventListener('input', updateNewQuoteLabel);
-      document.addEventListener('keydown', event => { if (event.key === 'Escape' && !els.overlay.hidden) closeSettings(); });
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !els.overlay.hidden) closeSettings();
+        trapFocus(event);
+      });
+      els.overlay.addEventListener('click', event => {
+        if (event.target === els.overlay) closeSettings();
+      });
       els.list.addEventListener('wheel', event => {
         const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY)
           ? event.deltaX
