@@ -92,8 +92,15 @@
     .theme-switch[aria-checked="true"] .theme-switch-thumb { transform: translateX(22px); }
     .theme-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
     .theme-setting-title { font-size: 14px; }
-    .intro { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; align-items: center; margin: 0 0 23px; }
-    .intro-main { min-width: 0; }
+    .intro {
+      display: grid; gap: 4px 28px; align-items: center; margin: 0 0 23px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-areas: "eyebrow calc" "title calc" "rate calc";
+    }
+    .intro .eyebrow { grid-area: eyebrow; }
+    .intro .pair-heading { grid-area: title; }
+    .intro .rate-note { grid-area: rate; }
+    .intro .amount-converter { grid-area: calc; justify-self: end; }
     .eyebrow { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
     .pair-heading { display: flex; align-items: center; margin-top: 9px; }
     .pair-heading-title { margin: 0; }
@@ -172,9 +179,9 @@
       border: 1px solid var(--line); border-radius: 9px; background: var(--page);
       color: var(--ink); font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums;
     }
-    .converter-input { flex: 1; min-width: 64px; }
+    .converter-input { width: 68px; flex: none; }
     .converter-result {
-      min-width: 84px; display: flex; align-items: center;
+      min-width: 76px; display: flex; align-items: center;
       border-color: transparent; background: transparent;
       overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
     }
@@ -252,10 +259,14 @@
       .table-head, .conversion-row { gap: 28px; }
       .settings-overlay { padding: max(18px, env(safe-area-inset-top)) 15px 15px; }
       .settings-card { padding: 14px; }
-      .intro { grid-template-columns: 1fr; }
-      .amount-converter { width: 100%; }
-      .converter-input { flex: 1; width: auto; }
-      .converter-input, .converter-result { padding: 0 9px; font-size: 16px; }
+      .intro {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 6px 12px;
+        grid-template-areas: "eyebrow eyebrow" "title calc" "rate rate";
+      }
+      .intro .amount-converter { justify-self: end; }
+      .pair-title { font-size: 21px; }
+      .converter-input, .converter-result { padding: 0 8px; font-size: 16px; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
@@ -276,15 +287,13 @@
     </header>
 
     <section class="intro" aria-labelledby="pair-heading-title">
-      <div class="intro-main">
-        <div class="eyebrow">Мой обмен</div>
-        <div class="pair-heading">
-          <h2 id="pair-heading-title" class="pair-heading-title">
-            <button id="pair-title" class="pair-title" type="button" aria-label="Поменять направление конвертации" title="Поменять направление конвертации">AED <span>→</span> RUB</button>
-          </h2>
-        </div>
-        <p id="rate-note" class="rate-note"></p>
+      <div class="eyebrow">Мой обмен</div>
+      <div class="pair-heading">
+        <h2 id="pair-heading-title" class="pair-heading-title">
+          <button id="pair-title" class="pair-title" type="button" aria-label="Поменять направление конвертации" title="Поменять направление конвертации">AED <span>→</span> RUB</button>
+        </h2>
       </div>
+      <p id="rate-note" class="rate-note"></p>
       <section class="amount-converter" aria-label="Конвертация произвольной суммы">
         <span id="converter-source-label" class="converter-label" hidden></span>
         <input id="converter-amount" class="converter-input" type="text" inputmode="decimal" autocomplete="off" value="1" aria-label="Сумма для конвертации">
