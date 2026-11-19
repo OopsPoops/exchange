@@ -93,27 +93,27 @@
     .theme-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
     .theme-setting-title { font-size: 14px; }
     .intro {
-      display: grid; gap: 4px 28px; align-items: center; margin: 0 0 23px;
+      display: grid; gap: 0 28px; align-items: center; margin: 0 0 23px;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       grid-template-areas: "eyebrow calc" "title calc" "rate calc";
     }
     .intro .eyebrow { grid-area: eyebrow; }
     .intro .pair-heading { grid-area: title; }
     .intro .rate-note { grid-area: rate; }
-    .intro .amount-converter { grid-area: calc; justify-self: end; align-self: end; }
-    .eyebrow { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-    .pair-heading { display: flex; align-items: center; margin-top: 9px; }
+    .intro .amount-converter { grid-area: calc; justify-self: end; align-self: center; }
+    .eyebrow { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; line-height: 1; text-transform: uppercase; }
+    .pair-heading { display: flex; align-items: center; margin-top: -10px; }
     .pair-heading-title { margin: 0; }
     .pair-title {
       display: inline-flex; align-items: baseline; gap: 10px; padding: 0; border: 0;
       border-radius: 4px; background: transparent; color: var(--ink); cursor: pointer;
       text-align: left; font: inherit; font-size: clamp(24px, 5vw, 32px);
-      line-height: 1.15; letter-spacing: -1.1px; font-weight: 640;
+      line-height: 1; letter-spacing: -1.1px; font-weight: 640;
     }
     .pair-title span { color: var(--muted); font-weight: 420; }
     .pair-title:hover span { color: var(--accent-strong); }
     .pair-title:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
-    .rate-note { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+    .rate-note { margin: -8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.05; }
     .currency-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 17px; }
     .currency-switcher { display: flex; flex: 1; min-width: 0; gap: 12px; overflow-x: auto; margin: 0; padding: 0 5px; scrollbar-width: none; }
     .currency-switcher::-webkit-scrollbar { display: none; }
@@ -261,7 +261,7 @@
       .settings-card { padding: 14px; }
       .intro {
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 6px 12px;
+        gap: 0 12px;
         grid-template-areas: "eyebrow eyebrow" "title calc" "rate rate";
       }
       .intro .amount-converter { justify-self: end; }
