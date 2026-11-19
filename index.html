@@ -100,7 +100,7 @@
     .intro .eyebrow { grid-area: eyebrow; }
     .intro .pair-heading { grid-area: title; }
     .intro .rate-note { grid-area: rate; }
-    .intro .amount-converter { grid-area: calc; justify-self: end; align-self: center; }
+    .intro .amount-converter { grid-area: calc; justify-self: end; align-self: start; margin-top: -4px; }
     .eyebrow { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; line-height: 1; text-transform: uppercase; }
     .pair-heading { display: flex; align-items: center; margin-top: -10px; }
     .pair-heading-title { margin: 0; }
@@ -170,12 +170,12 @@
     .range-button:disabled:hover { background: var(--surface); }
     .amount-converter {
       display: flex; align-items: center; gap: 6px; flex: none;
-      padding: 6px 8px; border: 1px solid var(--line); border-radius: 14px;
+      padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px;
       background: var(--surface); box-shadow: var(--shadow);
     }
     .converter-arrow { color: var(--muted); font-size: 14px; }
     .converter-input, .converter-result {
-      min-width: 0; min-height: 32px; padding: 0 8px;
+      min-width: 0; min-height: 40px; padding: 0 10px;
       border: 1px solid var(--line); border-radius: 9px; background: var(--page);
       color: var(--ink); font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums;
     }
